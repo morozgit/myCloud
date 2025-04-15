@@ -1,23 +1,27 @@
-from fastapi import APIRouter
-import os, pwd
+from fastapi import APIRouter, HTTPException, Query
 from pathlib import Path
-from fastapi import FastAPI, HTTPException
+import os
 
 navigation_router = APIRouter(
-    prefix="/navigation",
+    prefix="/api/navigation",
     tags=["navigation"],
 )
 
-
 BASE_DIR = Path(os.getenv("BASE_DIR", "/home")).resolve()
-    
+
 @navigation_router.get("/")
-async def list_home_directory():
-    if not BASE_DIR.exists() or not BASE_DIR.is_dir():
-        raise HTTPException(status_code=404, detail="Базовая директория не найдена")
+async def list_directory(path: str = Query("/")):
+    requested_path = (BASE_DIR / path.lstrip("/")).resolve()
+
+    # Защита от выхода за пределы BASE_DIR
+    if not str(requested_path).startswith(str(BASE_DIR)):
+        raise HTTPException(status_code=403, detail="Доступ к этой директории запрещён")
+
+    if not requested_path.exists() or not requested_path.is_dir():
+        raise HTTPException(status_code=404, detail="Директория не найдена")
 
     contents = []
-    for item in BASE_DIR.iterdir():
+    for item in requested_path.iterdir():
         contents.append({
             "name": item.name,
             "is_dir": item.is_dir(),
@@ -26,6 +30,6 @@ async def list_home_directory():
         })
 
     return {
-        "path": str(BASE_DIR),
+        "path": "/" + str(requested_path.relative_to(BASE_DIR)),
         "items": contents
     }
