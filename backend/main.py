@@ -3,6 +3,8 @@ from fastapi import FastAPI
 from src.navigation import navigation_router
 app = FastAPI(
     title="Backend MyCloud",
+    root_path="/api"
+
 )
 
 app.include_router(navigation_router)
