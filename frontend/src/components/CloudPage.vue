@@ -178,16 +178,23 @@ const goToCloud = () => {
 }
 
 .download-button {
-  background: #8f0d0d;
-  border: none;
-  cursor: pointer;
-  margin-top: 8px;
+  padding: 5px 10px;
+  background-color: #828d8848;
+
 }
 
 .download-icon {
   width: 24px;
   height: 24px;
-  color: #42b983;
+}
+
+.download-button:hover {
+  background-color: #358a6a;
+  transform: scale(1.05);
+}
+
+.download-button:active {
+  transform: scale(1);
 }
 
 /* Стили для кнопки заголовка */
