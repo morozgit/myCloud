@@ -1,6 +1,7 @@
 <template>
   <div class="wrapper">
-    <h1>My Cloud</h1>
+    <!-- Нажатие на заголовок My Cloud для перехода на /cloud -->
+    <h1 @click="goToCloud" class="cloud-button">My Cloud</h1>
 
     <!-- Навигация по пути -->
     <div class="directory-path">
@@ -27,6 +28,11 @@
         <div class="file-details">
           <p class="file-name">{{ item.name }}</p>
           <p v-if="item.is_file" class="file-size">{{ item.size }} bytes</p>
+          
+          <!-- Кнопка для скачивания -->
+          <button @click.stop="downloadFile(item)" class="download-button">
+            <img src="/icons/download-icon.svg" alt="Download" class="download-icon" />
+          </button>
         </div>
       </div>
     </div>
@@ -95,6 +101,11 @@ const goTo = (index) => {
   const newPath = '/' + pathSegments.value.slice(0, index + 1).join('/');
   router.push(`/cloud${newPath}`);
 };
+
+// Новый метод для перехода на главную директорию /cloud
+const goToCloud = () => {
+  router.push('/cloud');
+};
 </script>
 
 <style scoped>
@@ -117,21 +128,6 @@ const goTo = (index) => {
 .directory-path {
   margin-bottom: 10px;
   color: #aaa;
-}
-
-.back-button {
-  margin-bottom: 20px;
-  padding: 0.5rem 1rem;
-  background-color: #333;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-.back-button:disabled {
-  background-color: #555;
-  cursor: not-allowed;
 }
 
 .file-list {
@@ -179,5 +175,41 @@ const goTo = (index) => {
 .file-size {
   font-size: 0.8em;
   color: #a0a0a0;
+}
+
+.download-button {
+  background: #8f0d0d;
+  border: none;
+  cursor: pointer;
+  margin-top: 8px;
+}
+
+.download-icon {
+  width: 24px;
+  height: 24px;
+  color: #42b983;
+}
+
+/* Стили для кнопки заголовка */
+.cloud-button {
+  display: inline-block;
+  padding: 15px 30px;
+  background-color: #828d8848;
+  color: white;
+  font-size: 2rem;
+  text-align: center;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background-color 0.3s ease, transform 0.2s ease;
+  text-decoration: none;
+}
+
+.cloud-button:hover {
+  background-color: #358a6a;
+  transform: scale(1.05);
+}
+
+.cloud-button:active {
+  transform: scale(1);
 }
 </style>
