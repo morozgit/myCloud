@@ -33,7 +33,7 @@
           </p>
 
           <!-- Кнопка для скачивания -->
-          <button @click.stop="downloadFile(item)" class="download-button">
+          <button @click.stop="downloadFileWrapper(item)" class="download-button">
             <img src="/icons/download-icon.svg" alt="Download" class="download-icon" />
           </button>
         </div>
@@ -46,6 +46,14 @@
 import { ref, computed, onMounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import axios from 'axios';
+import { useDownload } from '@/composables/useDownload';
+
+const { downloadFile } = useDownload();
+
+const downloadFileWrapper = (item) => {
+  const fullPath = `${path.value}/${item.name}`.replace(/\/+/g, '/');
+  downloadFile({ ...item, path: fullPath });
+};
 
 const route = useRoute();
 const router = useRouter();
@@ -107,7 +115,7 @@ const goTo = (index) => {
 
 // Новый метод для перехода на главную директорию /cloud
 const goToCloud = () => {
-  router.push('/cloud');
+  router.push('/cloud/home');
 };
 </script>
 

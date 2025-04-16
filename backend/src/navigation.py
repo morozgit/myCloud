@@ -1,15 +1,17 @@
+from .models.model import File
 from fastapi import APIRouter, HTTPException, Query
 from pathlib import Path
 import os
 from fastapi.responses import JSONResponse
 from fastapi import Request
+from file_job.task import connectRebitMQ
 
 navigation_router = APIRouter(
     prefix="/api/navigation",
     tags=["navigation"],
 )
 
-BASE_DIR = Path(os.getenv("BASE_DIR", "/home")).resolve()
+BASE_DIR = Path("/")
 
 
 @navigation_router.get("/")
@@ -17,7 +19,7 @@ async def list_directory(request: Request):
     try:
         rel_path = request.query_params.get("path", "").lstrip("/")
         target_path = (BASE_DIR / rel_path).resolve()
-        
+
         if not str(target_path).startswith(str(BASE_DIR)):
             return JSONResponse(status_code=403, content={"detail": "Доступ запрещён"})
 
@@ -41,9 +43,16 @@ async def list_directory(request: Request):
             contents.append(item_info)
 
         return {
-            "path": str(target_path.relative_to(BASE_DIR)),
+            "path": "/" + str(target_path.relative_to(BASE_DIR)),
             "items": contents
         }
 
     except Exception as e:
         return JSONResponse(status_code=500, content={"detail": f"Ошибка чтения директории: {e}"})
+    
+
+@navigation_router.post("/download")
+async def download_file(file: File):
+    connectRebitMQ(str(file.path), str(file.name))
+    print("Получен payload:", file)
+    return {"message": "Задание на скачивание получено"}

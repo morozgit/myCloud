@@ -13,7 +13,7 @@ const router = useRouter();
 
 const goToCloud = async () => {
   router.push({
-      path: '/cloud',
+      path: '/cloud/home',
     });
 };
 </script>
