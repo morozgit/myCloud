@@ -28,7 +28,7 @@
         <div class="file-details">
           <p class="file-name">{{ item.name }}</p>
           <p v-if="item.is_file" class="file-size">{{ item.size }} bytes</p>
-          
+
           <!-- Кнопка для скачивания -->
           <button @click.stop="downloadFile(item)" class="download-button">
             <img src="/icons/download-icon.svg" alt="Download" class="download-icon" />
@@ -149,6 +149,15 @@ const goToCloud = () => {
   cursor: pointer;
 }
 
+.file-details {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  position: relative;
+  gap: 4px;
+}
+
 .file-item:hover {
   background-color: #2a2a2a;
 }
@@ -178,9 +187,12 @@ const goToCloud = () => {
 }
 
 .download-button {
+  align-self: flex-end; /* сдвигает кнопку вправо */
   padding: 5px 10px;
   background-color: #828d8848;
-
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
 }
 
 .download-icon {
