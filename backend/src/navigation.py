@@ -28,12 +28,21 @@ async def list_directory(request: Request):
 
         contents = []
         for item in target_path.iterdir():
-            contents.append({
+            item_info = {
                 "name": item.name,
                 "is_dir": item.is_dir(),
                 "is_file": item.is_file(),
                 "size": item.stat().st_size if item.is_file() else None,
-            })
+            }
+
+            # Если это папка — посчитаем количество вложенных элементов
+            if item.is_dir():
+                try:
+                    item_info["children_count"] = len(list(item.iterdir()))
+                except Exception:
+                    item_info["children_count"] = None  # вдруг нет доступа
+
+            contents.append(item_info)
 
         return {
             "path": str(target_path.relative_to(BASE_DIR)),

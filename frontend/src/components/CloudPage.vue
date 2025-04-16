@@ -27,7 +27,10 @@
         </div>
         <div class="file-details">
           <p class="file-name">{{ item.name }}</p>
-          <p v-if="item.is_file" class="file-size">{{ item.size }} bytes</p>
+          <p class="file-size">
+            <span v-if="item.is_file">{{ item.size }} bytes</span>
+            <span v-else>{{ item.children_count !== null ? item.children_count + ' объектов' : 'Папка' }}</span>
+          </p>
 
           <!-- Кнопка для скачивания -->
           <button @click.stop="downloadFile(item)" class="download-button">
