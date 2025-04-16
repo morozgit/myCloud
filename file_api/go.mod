@@ -1,4 +1,4 @@
-module mycloud/file-api
+module mycloud/file_api
 
 go 1.23.2
 
