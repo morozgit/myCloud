@@ -23,6 +23,9 @@ services:
       - ${HOST_USER_HOME}:/host_home:ro
     environment:
       - BASE_DIR=/host_home
+      - RABBITMQ_URL=rabbitmq://rabbitmq:5672  # Подключение к RabbitMQ
+    depends_on:
+      - rabbitmq
     networks:
       - dev
 
@@ -31,5 +34,13 @@ services:
       context: ./frontend
     depends_on:
       - backend
+    networks:
+      - dev
+
+  rabbitmq:
+    image: "rabbitmq:3-management"
+    ports:
+      - "15672:15672"  # UI RabbitMQ Management
+      - "5672:5672"    # основной порт для RabbitMQ
     networks:
       - dev
