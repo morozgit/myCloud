@@ -1,5 +1,10 @@
-import { createApp } from 'vue'
-import './style.css'
-import App from './App.vue'
+import { createApp } from 'vue';
+import App from './App.vue'; // Это может быть App.vue, который использует router-view
+import router from './router';
 
-createApp(App).mount('#app')
+// Импортируем файл стилей
+import './style.css';
+
+createApp(App)
+  .use(router)
+  .mount('#app');
