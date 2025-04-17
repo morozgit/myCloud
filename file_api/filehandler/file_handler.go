@@ -1,51 +1,45 @@
 package filehandler
 
 import (
-	"bytes"
 	"fmt"
 	"io"
-	"mime/multipart"
 	"net/http"
 	"os"
 )
 
-func SendFileToBackend(filepath string) error {
-	file, err := os.Open(filepath)
+func CreateDownloadLink(filepath string) (string, error) {
+	const baseURL = "http://localhost:8080/files"
+
+	link := fmt.Sprintf("%s%s", baseURL, filepath)
+	return link, nil
+}
+
+func DownloadFile(url, filename, downloadDir string) error {
+
+	resp, err := http.Get(url)
 	if err != nil {
-		return fmt.Errorf("не удалось открыть файл: %w", err)
-	}
-	defer file.Close()
-
-	body := &bytes.Buffer{}
-	writer := multipart.NewWriter(body)
-
-	part, err := writer.CreateFormFile("file", filepath)
-	if err != nil {
-		return fmt.Errorf("не удалось создать форму: %w", err)
-	}
-
-	_, err = io.Copy(part, file)
-	if err != nil {
-		return fmt.Errorf("не удалось скопировать файл: %w", err)
-	}
-
-	writer.Close()
-
-	req, err := http.NewRequest("POST", "http://backend:8000/api/files/upload", body)
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Content-Type", writer.FormDataContentType())
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return fmt.Errorf("ошибка при отправке запроса: %w", err)
+		return fmt.Errorf("не удалось скачать файл: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("неуспешный статус: %d", resp.StatusCode)
+		return fmt.Errorf("неожиданный статус ответа: %s", resp.Status)
+	}
+
+	err = os.MkdirAll(downloadDir, os.ModePerm)
+	if err != nil {
+		return fmt.Errorf("не удалось создать папку downloads: %w", err)
+	}
+
+	out, err := os.Create(downloadDir + filename)
+	if err != nil {
+		return fmt.Errorf("не удалось создать файл: %w", err)
+	}
+	defer out.Close()
+
+	_, err = io.Copy(out, resp.Body)
+	if err != nil {
+		return fmt.Errorf("ошибка при записи файла: %w", err)
 	}
 
 	return nil
