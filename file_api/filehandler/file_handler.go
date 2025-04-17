@@ -8,7 +8,7 @@ import (
 )
 
 func CreateDownloadLink(filepath string) (string, error) {
-	const baseURL = "http://host.docker.internal:8080/files"
+	const baseURL = "http://172.17.0.1:8080/files"
 
 	link := fmt.Sprintf("%s%s", baseURL, filepath)
 	return link, nil
