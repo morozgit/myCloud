@@ -8,7 +8,7 @@ import (
 )
 
 func CreateDownloadLink(filepath string) (string, error) {
-	const baseURL = "http://192.168.3.1:8080/files"
+	const baseURL = "http://192.168.3.4:8080/files"
 
 	link := fmt.Sprintf("%s%s", baseURL, filepath)
 	return link, nil
