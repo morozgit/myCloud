@@ -31,7 +31,7 @@ func SendFileToBackend(filepath string) error {
 
 	writer.Close()
 
-	req, err := http.NewRequest("POST", "http://127.0.0.1:8000/api/files/upload", body)
+	req, err := http.NewRequest("POST", "http://backend:8000/api/files/upload", body)
 	if err != nil {
 		return err
 	}
