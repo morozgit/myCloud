@@ -13,6 +13,7 @@ services:
     depends_on:
       - frontend
       - backend
+      - file_api
     networks:
       - dev
 
@@ -20,10 +21,10 @@ services:
     build:
       context: ./backend
     volumes:
-      - ${HOST_USER_HOME}:/host_home:ro
+      - ${HOST_USER_HOME}:/home
     environment:
-      - BASE_DIR=/host_home
-      - RABBITMQ_URL=rabbitmq://rabbitmq:5672  # Подключение к RabbitMQ
+      - BASE_DIR=/home
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
     depends_on:
       - rabbitmq
     networks:
@@ -34,13 +35,28 @@ services:
       context: ./frontend
     depends_on:
       - backend
+      - file_api
+      - rabbitmq
+    networks:
+      - dev
+
+  file_api:
+    build:
+      context: ./file_api
+    environment:
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+    depends_on:
+      - backend
+      - rabbitmq
+    volumes:
+    - ${HOST_USER_HOME}:/home
     networks:
       - dev
 
   rabbitmq:
     image: "rabbitmq:3-management"
     ports:
-      - "15672:15672"  # UI RabbitMQ Management
-      - "5672:5672"    # основной порт для RabbitMQ
+      - "15672:15672"
+      - "5672:5672"
     networks:
       - dev

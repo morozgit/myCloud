@@ -2,12 +2,12 @@ from pika import ConnectionParameters, BlockingConnection
 import json
 
 connection_params = ConnectionParameters(
-    host="localhost",
+    host="rabbitmq",
     port=5672,
 )
 
 
-def connectRebitMQ(path: str, name: str):
+def connectRabbitMQ(path: str, name: str):
     with BlockingConnection(connection_params) as conn:
         with conn.channel() as ch:
             ch.queue_declare(queue="file")

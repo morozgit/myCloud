@@ -16,7 +16,7 @@ type Message struct {
 }
 
 func main() {
-	conn, err := amqp.Dial("amqp://guest:guest@localhost:5672/")
+	conn, err := amqp.Dial("amqp://guest:guest@rabbitmq:5672/")
 	if err != nil {
 		log.Fatalf("Не удалось подключиться к RabbitMQ: %s", err)
 	}
@@ -66,7 +66,7 @@ func main() {
 				continue
 			}
 
-			filepath := msg.Path
+			filepath := "/home" + msg.Path
 			fmt.Printf("Получено сообщение с путем: %s\n", filepath)
 
 			destinationPath := "/home/user/Downloads/MyCloudFiles"

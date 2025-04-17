@@ -66,6 +66,7 @@ const fetchDirectoryContents = async (targetPath = '') => {
     const query = targetPath ? `?path=${encodeURIComponent(targetPath)}` : '';
     const response = await axios.get(`/api/navigation/${query}`);
     path.value = response.data.path;
+    console.log(response.data.path)
     items.value = response.data.items;
   } catch (error) {
     console.error("Ошибка загрузки содержимого директории", error);
@@ -89,6 +90,7 @@ watch(route, () => {
 const handleClick = (item) => {
   if (item.is_dir) {
     const newPath = `${routePath.value}/${item.name}`.replace(/\/+/g, '/');
+    console.log(newPath)
     router.push(`/cloud${newPath}`);
   } else if (item.is_file) {
     const fileUrl = `/files${path.value}/${item.name}`.replace(/\/+/g, '/');
@@ -113,9 +115,8 @@ const goTo = (index) => {
   router.push(`/cloud${newPath}`);
 };
 
-// Новый метод для перехода на главную директорию /cloud
 const goToCloud = () => {
-  router.push('/cloud/home');
+  router.push('/cloud');
 };
 </script>
 
