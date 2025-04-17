@@ -11,7 +11,6 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/joho/godotenv"
 	"github.com/streadway/amqp"
 )
 
@@ -28,31 +27,12 @@ const (
 )
 
 func main() {
-	loadEnv()
-
-	baseDir := getEnvOrFail("BASE_DIR")
-	downloadDir := filepath.Join(baseDir, "Downloads/MyCloudFiles")
-
 	startFileServer()
 
-	go handleMessages(downloadDir)
+	go handleMessages()
 
 	fmt.Printf("Сервер запущен на http://localhost%s\n", serverAddr)
 	log.Fatal(http.ListenAndServe(serverAddr, nil))
-}
-
-func loadEnv() {
-	if err := godotenv.Load(); err != nil {
-		log.Fatal("Ошибка при загрузке .env файла")
-	}
-}
-
-func getEnvOrFail(key string) string {
-	value := os.Getenv(key)
-	if value == "" {
-		log.Fatalf("%s не задан в .env", key)
-	}
-	return value
 }
 
 func startFileServer() {
@@ -89,7 +69,7 @@ func startFileServer() {
 	})
 }
 
-func handleMessages(downloadDir string) {
+func handleMessages() {
 	conn, err := amqp.Dial(rabbitMQURL)
 	if err != nil {
 		log.Fatalf("Не удалось подключиться к RabbitMQ: %v", err)
@@ -132,7 +112,7 @@ func handleMessages(downloadDir string) {
 		if err := filehandler.DownloadFile(link); err != nil {
 			log.Printf("Ошибка при загрузке файла %s: %v", msg.Name, err)
 		} else {
-			fmt.Printf("Файл %s успешно загружен в папку %s\n", msg.Name, downloadDir)
+			fmt.Printf("Файл %s успешно загружен\n", msg.Name)
 		}
 	}
 }
