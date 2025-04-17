@@ -16,7 +16,8 @@ type Message struct {
 }
 
 func main() {
-	conn, err := amqp.Dial("amqp://guest:guest@rabbitmq:5672/")
+	// conn, err := amqp.Dial("amqp://guest:guest@rabbitmq:5672/")
+	conn, err := amqp.Dial("amqp://guest:guest@localhost:5672/")
 	if err != nil {
 		log.Fatalf("Не удалось подключиться к RabbitMQ: %s", err)
 	}
@@ -69,13 +70,11 @@ func main() {
 			filepath := "/home" + msg.Path
 			fmt.Printf("Получено сообщение с путем: %s\n", filepath)
 
-			destinationPath := "/home/user/Downloads/MyCloudFiles"
-
-			err = filehandler.DownloadFile(filepath, destinationPath)
+			err = filehandler.SendFileToBackend(filepath)
 			if err != nil {
-				log.Printf("Ошибка при скачивании файла %s: %v", filepath, err)
+				log.Printf("Ошибка при отправке файла на бекенд %s: %v", filepath, err)
 			} else {
-				fmt.Printf("Файл %s успешно скачан в %s\n", filepath, destinationPath)
+				fmt.Printf("Файл %s успешно отправлен на бекенд\n", filepath)
 			}
 		}
 	}()

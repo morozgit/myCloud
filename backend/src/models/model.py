@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 
 
-class File(BaseModel):
+class FileStruct(BaseModel):
     path: str
     name: str

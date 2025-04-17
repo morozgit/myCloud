@@ -1,10 +1,8 @@
-from .models.model import File
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter
 from pathlib import Path
 import os
 from fastapi.responses import JSONResponse
 from fastapi import Request
-from file_job.task import connectRabbitMQ
 
 navigation_router = APIRouter(
     prefix="/api/navigation",
@@ -51,8 +49,3 @@ async def list_directory(request: Request):
         return JSONResponse(status_code=500, content={"detail": f"Ошибка чтения директории: {e}"})
     
 
-@navigation_router.post("/download")
-async def download_file(file: File):
-    connectRabbitMQ(str(file.path), str(file.name))
-    print("Получен payload:", file)
-    return {"message": "Задание на скачивание получено"}

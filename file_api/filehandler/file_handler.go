@@ -1,35 +1,52 @@
 package filehandler
 
 import (
+	"bytes"
 	"fmt"
 	"io"
+	"mime/multipart"
+	"net/http"
 	"os"
-	"strings"
 )
 
-func DownloadFile(filepath, destination string) error {
-	sourceFile, err := os.Open(filepath)
+func SendFileToBackend(filepath string) error {
+	file, err := os.Open(filepath)
 	if err != nil {
 		return fmt.Errorf("не удалось открыть файл: %w", err)
 	}
-	defer sourceFile.Close()
+	defer file.Close()
 
-	err = os.MkdirAll(destination, os.ModePerm)
+	body := &bytes.Buffer{}
+	writer := multipart.NewWriter(body)
+
+	part, err := writer.CreateFormFile("file", filepath)
 	if err != nil {
-		return fmt.Errorf("не удалось создать директорию: %w", err)
+		return fmt.Errorf("не удалось создать форму: %w", err)
 	}
 
-	destinationFilePath := destination + "/" + filepath[strings.LastIndex(filepath, "/")+1:]
-
-	destinationFile, err := os.Create(destinationFilePath)
+	_, err = io.Copy(part, file)
 	if err != nil {
-		return fmt.Errorf("не удалось создать файл: %w", err)
+		return fmt.Errorf("не удалось скопировать файл: %w", err)
 	}
-	defer destinationFile.Close()
 
-	_, err = io.Copy(destinationFile, sourceFile)
+	writer.Close()
+
+	req, err := http.NewRequest("POST", "http://127.0.0.1:8000/api/files/upload", body)
 	if err != nil {
-		return fmt.Errorf("не удалось скопировать данные: %w", err)
+		return err
 	}
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("ошибка при отправке запроса: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("неуспешный статус: %d", resp.StatusCode)
+	}
+
 	return nil
 }

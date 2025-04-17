@@ -1,26 +1,27 @@
-// src/composables/useDownload.js
+import { ref } from 'vue';
+import toastr from 'toastr';
 import axios from 'axios';
 
-/**
- * Отправка задания на скачивание файла через RabbitMQ
- * @param {Object} item - объект файла (содержит путь и имя)
- */
 export const useDownload = () => {
+  const isDownloading = ref(false);
+
   const downloadFile = async (item) => {
-    console.log("TYTA")
+    isDownloading.value = true;
     try {
       const payload = {
-        path: item.path,    // полный путь до файла
-        name: item.name     // имя файла
+        path: item.path,
+        name: item.name
       };
-      console.log("payload", payload)
-      await axios.post('/api/navigation/download', payload);
-      alert('Файл добавлен в очередь на скачивание.');
+
+      await axios.post('/api/files/download', payload);
+      toastr.success('Файл добавлен в очередь на скачивание.');
     } catch (error) {
       console.error('Ошибка при отправке запроса на скачивание:', error);
-      alert('Не удалось отправить файл на скачивание.');
+      toastr.error('Ошибка: файл не был добавлен в очередь.');
+    } finally {
+      isDownloading.value = false;
     }
   };
 
-  return { downloadFile };
+  return { downloadFile, isDownloading };
 };
