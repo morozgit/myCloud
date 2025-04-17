@@ -21,8 +21,8 @@ func main() {
 	go func() {
 		fs := http.FileServer(http.Dir("/home"))
 		http.Handle("/files/", http.StripPrefix("/files/", fs))
-		log.Println("Файловый сервер запущен на http://localhost:8080")
-		log.Fatal(http.ListenAndServe(":8080", nil))
+		log.Println("Файловый сервер запущен на http://0.0.0.0:8080")
+		log.Fatal(http.ListenAndServe("0.0.0.0:8080", nil))
 	}()
 
 	err := godotenv.Load()
@@ -35,7 +35,8 @@ func main() {
 	}
 	downloadDir := baseDir + "Downloads/MyCloudFiles/"
 
-	conn, err := amqp.Dial("amqp://guest:guest@localhost:5672/")
+	// conn, err := amqp.Dial("amqp://guest:guest@localhost:5672/")
+	conn, err := amqp.Dial("amqp://guest:guest@rabbitmq:5672/")
 	if err != nil {
 		log.Fatalf("Не удалось подключиться к RabbitMQ: %s", err)
 	}
