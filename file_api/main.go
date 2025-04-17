@@ -18,24 +18,36 @@ type Message struct {
 }
 
 func main() {
+	// Запуск файлового сервера
 	go func() {
 		fs := http.FileServer(http.Dir("/home"))
 		http.Handle("/files/", http.StripPrefix("/files/", fs))
+
+		// Обработчик для скачивания файла
+		http.HandleFunc("/files", func(w http.ResponseWriter, r *http.Request) {
+			// Устанавливаем заголовок для скачивания
+			w.Header().Set("Content-Disposition", "attachment; filename="+r.URL.Path)
+			w.Header().Set("Content-Type", "application/octet-stream")
+			http.ServeFile(w, r, "/home"+r.URL.Path)
+		})
+
 		log.Println("Файловый сервер запущен на http://0.0.0.0:8080")
 		log.Fatal(http.ListenAndServe("0.0.0.0:8080", nil))
 	}()
 
+	// Загрузка переменных окружения
 	err := godotenv.Load()
 	if err != nil {
 		log.Fatal("Ошибка при загрузке .env файла")
 	}
+
 	baseDir := os.Getenv("BASE_DIR")
 	if baseDir == "" {
 		log.Fatal("BASE_DIR не задан в .env")
 	}
 	downloadDir := baseDir + "Downloads/MyCloudFiles/"
 
-	// conn, err := amqp.Dial("amqp://guest:guest@localhost:5672/")
+	// Подключение к RabbitMQ
 	conn, err := amqp.Dial("amqp://guest:guest@rabbitmq:5672/")
 	if err != nil {
 		log.Fatalf("Не удалось подключиться к RabbitMQ: %s", err)
@@ -48,6 +60,7 @@ func main() {
 	}
 	defer ch.Close()
 
+	// Объявление очереди
 	q, err := ch.QueueDeclare("file", false, false, false, false, nil)
 	if err != nil {
 		log.Fatalf("Не удалось объявить очередь: %s", err)
@@ -61,6 +74,7 @@ func main() {
 	fmt.Println("Ожидаем сообщения. Для выхода нажмите CTRL+C")
 	forever := make(chan bool)
 
+	// Обработка сообщений из очереди
 	go func() {
 		for d := range msgs {
 			var msg Message
@@ -75,6 +89,7 @@ func main() {
 			fmt.Printf("Получено сообщение с путем: %s\n", filepath)
 			fmt.Printf("Получено сообщение с именем: %s\n", filename)
 
+			// Создание ссылки для скачивания
 			link, err := filehandler.CreateDownloadLink(filepath)
 			if err != nil {
 				log.Printf("Ошибка при создании ссылки %s: %v", filepath, err)
@@ -82,6 +97,7 @@ func main() {
 			}
 			fmt.Printf("Ссылка на скачивание: %s\n", link)
 
+			// Загрузка файла
 			err = filehandler.DownloadFile(link, filename, downloadDir)
 			if err != nil {
 				log.Printf("Ошибка при загрузке файла %s: %v", filename, err)
