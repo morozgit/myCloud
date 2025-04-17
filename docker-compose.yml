@@ -52,6 +52,8 @@ services:
     - ${HOST_USER_HOME}:/home
     networks:
       - dev
+    extra_hosts:
+    - "host.docker.internal:host-gateway"
 
   rabbitmq:
     image: "rabbitmq:3-management"
