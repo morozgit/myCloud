@@ -3,10 +3,13 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"mycloud/file_api/filehandler"
 	"net/http"
+	"net/url"
 	"os"
+	"path/filepath"
 
 	"github.com/joho/godotenv"
 	"github.com/streadway/amqp"
@@ -17,95 +20,119 @@ type Message struct {
 	Name string `json:"name"`
 }
 
+const (
+	rabbitMQURL = "amqp://guest:guest@localhost:5672/"
+	queueName   = "file"
+	serverAddr  = ":8080"
+	filesRoute  = "/files/"
+)
+
 func main() {
-	// Запуск файлового сервера
-	go func() {
-		fs := http.FileServer(http.Dir("/home"))
-		http.Handle("/files/", http.StripPrefix("/files/", fs))
+	loadEnv()
 
-		// Обработчик для скачивания файла
-		http.HandleFunc("/files", func(w http.ResponseWriter, r *http.Request) {
-			// Устанавливаем заголовок для скачивания
-			w.Header().Set("Content-Disposition", "attachment; filename="+r.URL.Path)
-			w.Header().Set("Content-Type", "application/octet-stream")
-			http.ServeFile(w, r, "/home"+r.URL.Path)
-		})
+	baseDir := getEnvOrFail("BASE_DIR")
+	downloadDir := filepath.Join(baseDir, "Downloads/MyCloudFiles")
 
-		log.Println("Файловый сервер запущен на http://0.0.0.0:8080")
-		log.Fatal(http.ListenAndServe("0.0.0.0:8080", nil))
-	}()
+	startFileServer()
 
-	// Загрузка переменных окружения
-	err := godotenv.Load()
-	if err != nil {
+	go handleMessages(downloadDir)
+
+	fmt.Printf("Сервер запущен на http://localhost%s\n", serverAddr)
+	log.Fatal(http.ListenAndServe(serverAddr, nil))
+}
+
+func loadEnv() {
+	if err := godotenv.Load(); err != nil {
 		log.Fatal("Ошибка при загрузке .env файла")
 	}
+}
 
-	baseDir := os.Getenv("BASE_DIR")
-	if baseDir == "" {
-		log.Fatal("BASE_DIR не задан в .env")
+func getEnvOrFail(key string) string {
+	value := os.Getenv(key)
+	if value == "" {
+		log.Fatalf("%s не задан в .env", key)
 	}
-	downloadDir := baseDir + "Downloads/MyCloudFiles/"
+	return value
+}
 
-	// Подключение к RabbitMQ
-	conn, err := amqp.Dial("amqp://guest:guest@rabbitmq:5672/")
+func startFileServer() {
+	http.HandleFunc(filesRoute, func(w http.ResponseWriter, r *http.Request) {
+		decodedPath, err := url.PathUnescape(r.URL.Path[len(filesRoute):])
+		if err != nil {
+			http.Error(w, "Неверный путь", http.StatusBadRequest)
+			return
+		}
+
+		fullPath := filepath.Join("/home", decodedPath)
+		fileName := filepath.Base(decodedPath)
+
+		fileInfo, err := os.Stat(fullPath)
+		if os.IsNotExist(err) || fileInfo.IsDir() {
+			http.NotFound(w, r)
+			return
+		}
+
+		file, err := os.Open(fullPath)
+		if err != nil {
+			http.Error(w, "Ошибка при открытии файла", http.StatusInternalServerError)
+			return
+		}
+		defer file.Close()
+
+		w.Header().Set("Content-Type", "application/octet-stream")
+		w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", fileName))
+		w.Header().Set("Content-Length", fmt.Sprintf("%d", fileInfo.Size()))
+
+		if _, err = io.Copy(w, file); err != nil {
+			log.Printf("Ошибка при передаче файла: %v", err)
+		}
+	})
+}
+
+func handleMessages(downloadDir string) {
+	conn, err := amqp.Dial(rabbitMQURL)
 	if err != nil {
-		log.Fatalf("Не удалось подключиться к RabbitMQ: %s", err)
+		log.Fatalf("Не удалось подключиться к RabbitMQ: %v", err)
 	}
 	defer conn.Close()
 
 	ch, err := conn.Channel()
 	if err != nil {
-		log.Fatalf("Не удалось открыть канал: %s", err)
+		log.Fatalf("Не удалось открыть канал: %v", err)
 	}
 	defer ch.Close()
 
-	// Объявление очереди
-	q, err := ch.QueueDeclare("file", false, false, false, false, nil)
+	q, err := ch.QueueDeclare(queueName, false, false, false, false, nil)
 	if err != nil {
-		log.Fatalf("Не удалось объявить очередь: %s", err)
+		log.Fatalf("Не удалось объявить очередь: %v", err)
 	}
 
 	msgs, err := ch.Consume(q.Name, "", true, false, false, false, nil)
 	if err != nil {
-		log.Fatalf("Не удалось зарегистрировать потребителя: %s", err)
+		log.Fatalf("Не удалось зарегистрировать потребителя: %v", err)
 	}
 
-	fmt.Println("Ожидаем сообщения. Для выхода нажмите CTRL+C")
-	forever := make(chan bool)
-
-	// Обработка сообщений из очереди
-	go func() {
-		for d := range msgs {
-			var msg Message
-			err := json.Unmarshal(d.Body, &msg)
-			if err != nil {
-				log.Printf("Ошибка при декодировании сообщения: %v", err)
-				continue
-			}
-
-			filepath := msg.Path
-			filename := msg.Name
-			fmt.Printf("Получено сообщение с путем: %s\n", filepath)
-			fmt.Printf("Получено сообщение с именем: %s\n", filename)
-
-			// Создание ссылки для скачивания
-			link, err := filehandler.CreateDownloadLink(filepath)
-			if err != nil {
-				log.Printf("Ошибка при создании ссылки %s: %v", filepath, err)
-				continue
-			}
-			fmt.Printf("Ссылка на скачивание: %s\n", link)
-
-			// Загрузка файла
-			err = filehandler.DownloadFile(link, filename, downloadDir)
-			if err != nil {
-				log.Printf("Ошибка при загрузке файла %s: %v", filename, err)
-			} else {
-				fmt.Printf("Файл %s успешно загружен в папку %s\n", filename, downloadDir)
-			}
+	for d := range msgs {
+		var msg Message
+		if err := json.Unmarshal(d.Body, &msg); err != nil {
+			log.Printf("Ошибка при декодировании сообщения: %v", err)
+			continue
 		}
-	}()
 
-	<-forever
+		fmt.Printf("Получено сообщение: путь=%s, имя=%s\n", msg.Path, msg.Name)
+
+		link, err := filehandler.CreateDownloadLink(msg.Path)
+		if err != nil {
+			log.Printf("Ошибка при создании ссылки: %v", err)
+			continue
+		}
+
+		fmt.Printf("Ссылка на скачивание: %s\n", link)
+
+		if err := filehandler.DownloadFile(link); err != nil {
+			log.Printf("Ошибка при загрузке файла %s: %v", msg.Name, err)
+		} else {
+			fmt.Printf("Файл %s успешно загружен в папку %s\n", msg.Name, downloadDir)
+		}
+	}
 }

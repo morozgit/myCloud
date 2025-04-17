@@ -2,45 +2,21 @@ package filehandler
 
 import (
 	"fmt"
-	"io"
-	"net/http"
-	"os"
+
+	"github.com/pkg/browser"
 )
 
 func CreateDownloadLink(filepath string) (string, error) {
-	const baseURL = "http://192.168.3.4:8080/files"
+	const baseURL = "http://localhost:8080/files"
 
 	link := fmt.Sprintf("%s%s", baseURL, filepath)
 	return link, nil
 }
 
-func DownloadFile(url, filename, downloadDir string) error {
-
-	resp, err := http.Get(url)
+func DownloadFile(url string) error {
+	err := browser.OpenURL(url)
 	if err != nil {
-		return fmt.Errorf("не удалось скачать файл: %w", err)
+		return fmt.Errorf("не удалось открыть ссылку в браузере: %w", err)
 	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("неожиданный статус ответа: %s", resp.Status)
-	}
-
-	err = os.MkdirAll(downloadDir, os.ModePerm)
-	if err != nil {
-		return fmt.Errorf("не удалось создать папку downloads: %w", err)
-	}
-
-	out, err := os.Create(downloadDir + filename)
-	if err != nil {
-		return fmt.Errorf("не удалось создать файл: %w", err)
-	}
-	defer out.Close()
-
-	_, err = io.Copy(out, resp.Body)
-	if err != nil {
-		return fmt.Errorf("ошибка при записи файла: %w", err)
-	}
-
 	return nil
 }
