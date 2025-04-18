@@ -3,11 +3,13 @@ package filehandler
 import (
 	"fmt"
 
+	"mycloud/file_api/config"
+
 	"github.com/pkg/browser"
 )
 
 func CreateDownloadLink(filepath string) (string, error) {
-	const baseURL = "http://localhost:8080/files"
+	var baseURL = config.GetBaseURL()
 
 	link := fmt.Sprintf("%s%s", baseURL, filepath)
 	return link, nil

@@ -1,9 +1,13 @@
 from pika import ConnectionParameters, BlockingConnection
 import json
+from dotenv import find_dotenv, load_dotenv
+import os
+
+load_dotenv(find_dotenv()) 
+RABBITMQ_HOST = os.environ.get("RABBITMQ_HOST")
 
 connection_params = ConnectionParameters(
-    # host="rabbitmq",
-    host="localhost",
+    host=RABBITMQ_HOST,
     port=5672,
 )
 
