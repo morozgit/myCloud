@@ -2,10 +2,9 @@ package filehandler
 
 import (
 	"fmt"
+	"net/http"
 
 	"mycloud/file_api/config"
-
-	"github.com/pkg/browser"
 )
 
 func CreateDownloadLink(filepath string) (string, error) {
@@ -15,10 +14,23 @@ func CreateDownloadLink(filepath string) (string, error) {
 	return link, nil
 }
 
-func DownloadFile(url string) error {
-	err := browser.OpenURL(url)
-	if err != nil {
-		return fmt.Errorf("не удалось открыть ссылку в браузере: %w", err)
+func DownloadFileHandler(w http.ResponseWriter, r *http.Request) {
+	// Получаем путь файла из запроса
+	filePath := r.URL.Query().Get("path")
+	if filePath == "" {
+		http.Error(w, "Не указан путь к файлу", http.StatusBadRequest)
+		return
 	}
-	return nil
+
+	// Генерируем ссылку для скачивания
+	downloadLink, err := CreateDownloadLink(filePath)
+	if err != nil {
+		http.Error(w, "Не удалось создать ссылку на файл", http.StatusInternalServerError)
+		return
+	}
+
+	// Отправляем ссылку на фронтенд
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprintf(w, `{"download_link": "%s"}`, downloadLink)
 }

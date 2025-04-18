@@ -18,6 +18,7 @@ import (
 type Message struct {
 	Path string `json:"path"`
 	Name string `json:"name"`
+	URL  string `json:"url"`
 }
 
 const (
@@ -83,6 +84,7 @@ func HandleMessages() {
 		log.Fatalf("Не удалось зарегистрировать потребителя: %v", err)
 	}
 
+	// Обрабатываем сообщения
 	for d := range msgs {
 		var msg Message
 		if err := json.Unmarshal(d.Body, &msg); err != nil {
@@ -92,18 +94,65 @@ func HandleMessages() {
 
 		fmt.Printf("Получено сообщение: путь=%s, имя=%s\n", msg.Path, msg.Name)
 
+		// Создание ссылки для скачивания
 		link, err := filehandler.CreateDownloadLink(msg.Path)
 		if err != nil {
 			log.Printf("Ошибка при создании ссылки: %v", err)
 			continue
 		}
 
-		fmt.Printf("Ссылка на скачивание: %s\n", link)
-
-		if err := filehandler.DownloadFile(link); err != nil {
-			log.Printf("Ошибка при загрузке файла %s: %v", msg.Name, err)
-		} else {
-			fmt.Printf("Файл %s успешно загружен\n", msg.Name)
+		// Если ссылка уже существует, пропускаем обработку
+		if msg.URL != "" {
+			log.Println("Файл уже был обработан или ссылка отправлена")
+			continue
 		}
+
+		// Обновляем URL
+		msg.URL = link
+
+		// Отправляем сообщение обратно в очередь для дальнейшей обработки
+		// В данном случае вызовем функцию для отправки сообщения
+		sendMessage(msg)
 	}
+}
+
+func sendMessage(msg Message) {
+	var rabbitMQURL = config.GetRabbitMQURL()
+	conn, err := amqp.Dial(rabbitMQURL)
+	if err != nil {
+		log.Fatalf("Не удалось подключиться к RabbitMQ: %v", err)
+	}
+	defer conn.Close()
+
+	ch, err := conn.Channel()
+	if err != nil {
+		log.Fatalf("Не удалось открыть канал: %v", err)
+	}
+	defer ch.Close()
+
+	// Просто вызываем QueueDeclare без присваивания переменной, если не нужно
+	_, err = ch.QueueDeclare("get_link", false, false, false, false, nil)
+	if err != nil {
+		log.Fatalf("Не удалось объявить очередь: %v", err)
+	}
+
+	// Кодируем сообщение в формат JSON
+	encodedMsg, err := json.Marshal(msg)
+	if err != nil {
+		log.Printf("Ошибка при маршаллинге сообщения: %v", err)
+		return
+	}
+
+	// Отправляем сообщение в очередь
+	err = ch.Publish("", "get_link", false, false, amqp.Publishing{
+		ContentType: "application/json",
+		Body:        encodedMsg,
+	})
+	if err != nil {
+		log.Printf("Не удалось отправить сообщение: %v", err)
+		return
+	}
+
+	// Логируем успешную отправку сообщения
+	fmt.Printf("Ссылка на скачивание отправлена в очередь: %s\n", msg.URL)
 }
