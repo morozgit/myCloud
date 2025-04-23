@@ -156,6 +156,20 @@ func sendMessage(msg Message) {
 	fmt.Printf("Ссылка на скачивание отправлена в очередь: %s\n", msg.URL)
 }
 
+func resolveUploadPath(originalPath string) (string, error) {
+	rootDir := os.Getenv("UPLOAD_ROOT_DIR")
+	if rootDir == "" {
+		return "", fmt.Errorf("UPLOAD_ROOT_DIR не установлен в .env")
+	}
+
+	// Приводим путь к относительному, если он начинается с /
+	relativePath := strings.TrimPrefix(originalPath, "/")
+
+	// Склеиваем с корневым путем
+	finalPath := filepath.Join(rootDir, relativePath)
+	return finalPath, nil
+}
+
 func handleUploadQueue() {
 	ch, conn, err := getRabbitMQChannel()
 	if err != nil {
@@ -182,26 +196,27 @@ func handleUploadQueue() {
 		}
 
 		fmt.Printf("Получено сообщение: путь=%s, имя=%s\n", msg.Path, msg.Name)
-		homeDir, _ := os.UserHomeDir()
 
-		if strings.HasPrefix(msg.Path, "/user") {
-			msg.Path = filepath.Join(homeDir, strings.TrimPrefix(msg.Path, "/user"))
+		resolvedPath, err := resolveUploadPath(msg.Path)
+		if err != nil {
+			log.Printf("Ошибка при разрешении пути: %v", err)
+			continue
 		}
-
-		filePath := filepath.Join(msg.Path, msg.Name)
+		msg.Path = resolvedPath
 
 		if err := os.MkdirAll(msg.Path, 0755); err != nil {
 			log.Printf("Ошибка при создании директории: %v", err)
 			continue
 		}
 
-		// Сохраняем содержимое в файл
-		err := os.WriteFile(filePath, []byte(msg.Content), 0644)
+		filePath := filepath.Join(msg.Path, msg.Name)
+		err = os.WriteFile(filePath, []byte(msg.Content), 0644)
 		if err != nil {
 			log.Printf("Ошибка при сохранении файла: %v", err)
 			continue
 		}
 
 		fmt.Printf("Файл успешно сохранен: %s\n", filePath)
+
 	}
 }
