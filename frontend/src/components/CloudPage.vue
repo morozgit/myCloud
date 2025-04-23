@@ -126,10 +126,7 @@ const downloadFileWrapper = (item) => {
 
 const getIcon = (item) => {
   if (item.is_dir) return '/icons/folder-icon.svg';
-  const type = item.name.split('.').pop().toLowerCase();
-  return ['/txt', 'pdf', 'js', 'png', 'jpg'].includes(type)
-    ? `/icons/${type}-icon.svg`
-    : '/icons/file-icon.svg';
+  if (item.is_file) return '/icons/file-icon.svg';
 };
 
 const pathSegments = computed(() => path.value.split('/').filter(Boolean));
