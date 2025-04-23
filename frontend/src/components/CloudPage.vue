@@ -2,14 +2,7 @@
   <div class="wrapper">
     <h1 @click="goToCloud" class="cloud-button">My Cloud</h1>
 
-      <!-- Кнопка загрузки -->
-    <div class="upload-container">
-      <button @click.stop="triggerFileUpload" class="upload-button">
-        <img src="/icons/upload-icon.svg" alt="Upload" class="upload-icon" />
-      </button>
-      <span class="upload-text">Загрузить файл</span>
-      <input ref="fileInput" type="file" @change="handleFileUpload" style="display: none;" />
-    </div>
+
 
     <!-- Навигация по пути -->
     <div class="directory-path">
@@ -20,6 +13,15 @@
         </span>
         <span v-if="index < pathSegments.length - 1"> / </span>
       </span>
+    </div>
+
+      <!-- Кнопка загрузки -->
+    <div class="upload-container">
+      <button @click.stop="triggerFileUpload" class="upload-button">
+        <img src="/icons/upload-icon.svg" alt="Upload" class="upload-icon" />
+      </button>
+      <span class="upload-text">Загрузить файл</span>
+      <input ref="fileInput" type="file" @change="handleFileUpload" style="display: none;" />
     </div>
 
     <!-- Список файлов и папок -->
@@ -105,7 +107,7 @@ onMounted(() => {
   fetchDirectoryContents(routePath.value);
 });
 
-watch(() => route.fullPath, () => {
+watch(() => route.path, () => {
   fetchDirectoryContents(routePath.value);
 });
 
