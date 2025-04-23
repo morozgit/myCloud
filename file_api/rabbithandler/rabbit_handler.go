@@ -11,18 +11,19 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/streadway/amqp"
 )
 
 type Message struct {
-	Path string `json:"path"`
-	Name string `json:"name"`
-	URL  string `json:"url"`
+	Path    string `json:"path"`
+	Name    string `json:"name"`
+	URL     string `json:"url"`
+	Content string `json:"file_data"`
 }
 
 const (
-	queueName  = "file"
 	filesRoute = "/files/"
 )
 
@@ -61,20 +62,35 @@ func StartFileServer() {
 }
 
 func HandleMessages() {
-	var rabbitMQURL = config.GetRabbitMQURL()
-	conn, err := amqp.Dial(rabbitMQURL)
+	go handleDownloadQueue()
+	go handleUploadQueue()
+
+}
+
+func getRabbitMQChannel() (*amqp.Channel, *amqp.Connection, error) {
+	conn, err := amqp.Dial(config.GetRabbitMQURL())
+	if err != nil {
+		return nil, nil, fmt.Errorf("не удалось подключиться к RabbitMQ: %w", err)
+	}
+
+	ch, err := conn.Channel()
+	if err != nil {
+		conn.Close()
+		return nil, nil, fmt.Errorf("не удалось открыть канал RabbitMQ: %w", err)
+	}
+
+	return ch, conn, nil
+}
+
+func handleDownloadQueue() {
+	ch, conn, err := getRabbitMQChannel()
 	if err != nil {
 		log.Fatalf("Не удалось подключиться к RabbitMQ: %v", err)
 	}
 	defer conn.Close()
-
-	ch, err := conn.Channel()
-	if err != nil {
-		log.Fatalf("Не удалось открыть канал: %v", err)
-	}
 	defer ch.Close()
 
-	q, err := ch.QueueDeclare(queueName, false, false, false, false, nil)
+	q, err := ch.QueueDeclare("file", false, false, false, false, nil)
 	if err != nil {
 		log.Fatalf("Не удалось объявить очередь: %v", err)
 	}
@@ -84,7 +100,6 @@ func HandleMessages() {
 		log.Fatalf("Не удалось зарегистрировать потребителя: %v", err)
 	}
 
-	// Обрабатываем сообщения
 	for d := range msgs {
 		var msg Message
 		if err := json.Unmarshal(d.Body, &msg); err != nil {
@@ -94,56 +109,41 @@ func HandleMessages() {
 
 		fmt.Printf("Получено сообщение: путь=%s, имя=%s\n", msg.Path, msg.Name)
 
-		// Создание ссылки для скачивания
 		link, err := filehandler.CreateDownloadLink(msg.Path)
 		if err != nil {
 			log.Printf("Ошибка при создании ссылки: %v", err)
 			continue
 		}
 
-		// Если ссылка уже существует, пропускаем обработку
 		if msg.URL != "" {
 			log.Println("Файл уже был обработан или ссылка отправлена")
 			continue
 		}
 
-		// Обновляем URL
 		msg.URL = link
-
-		// Отправляем сообщение обратно в очередь для дальнейшей обработки
-		// В данном случае вызовем функцию для отправки сообщения
 		sendMessage(msg)
 	}
 }
 
 func sendMessage(msg Message) {
-	var rabbitMQURL = config.GetRabbitMQURL()
-	conn, err := amqp.Dial(rabbitMQURL)
+	ch, conn, err := getRabbitMQChannel()
 	if err != nil {
 		log.Fatalf("Не удалось подключиться к RabbitMQ: %v", err)
 	}
 	defer conn.Close()
-
-	ch, err := conn.Channel()
-	if err != nil {
-		log.Fatalf("Не удалось открыть канал: %v", err)
-	}
 	defer ch.Close()
 
-	// Просто вызываем QueueDeclare без присваивания переменной, если не нужно
 	_, err = ch.QueueDeclare("get_link", false, false, false, false, nil)
 	if err != nil {
 		log.Fatalf("Не удалось объявить очередь: %v", err)
 	}
 
-	// Кодируем сообщение в формат JSON
 	encodedMsg, err := json.Marshal(msg)
 	if err != nil {
 		log.Printf("Ошибка при маршаллинге сообщения: %v", err)
 		return
 	}
 
-	// Отправляем сообщение в очередь
 	err = ch.Publish("", "get_link", false, false, amqp.Publishing{
 		ContentType: "application/json",
 		Body:        encodedMsg,
@@ -153,6 +153,55 @@ func sendMessage(msg Message) {
 		return
 	}
 
-	// Логируем успешную отправку сообщения
 	fmt.Printf("Ссылка на скачивание отправлена в очередь: %s\n", msg.URL)
+}
+
+func handleUploadQueue() {
+	ch, conn, err := getRabbitMQChannel()
+	if err != nil {
+		log.Fatalf("Не удалось подключиться к RabbitMQ: %v", err)
+	}
+	defer conn.Close()
+	defer ch.Close()
+
+	q, err := ch.QueueDeclare("upload", false, false, false, false, nil)
+	if err != nil {
+		log.Fatalf("Не удалось объявить очередь: %v", err)
+	}
+
+	msgs, err := ch.Consume(q.Name, "", true, false, false, false, nil)
+	if err != nil {
+		log.Fatalf("Не удалось зарегистрировать потребителя: %v", err)
+	}
+
+	for d := range msgs {
+		var msg Message
+		if err := json.Unmarshal(d.Body, &msg); err != nil {
+			log.Printf("Ошибка при декодировании сообщения: %v", err)
+			continue
+		}
+
+		fmt.Printf("Получено сообщение: путь=%s, имя=%s\n", msg.Path, msg.Name)
+		homeDir, _ := os.UserHomeDir()
+
+		if strings.HasPrefix(msg.Path, "/user") {
+			msg.Path = filepath.Join(homeDir, strings.TrimPrefix(msg.Path, "/user"))
+		}
+
+		filePath := filepath.Join(msg.Path, msg.Name)
+
+		if err := os.MkdirAll(msg.Path, 0755); err != nil {
+			log.Printf("Ошибка при создании директории: %v", err)
+			continue
+		}
+
+		// Сохраняем содержимое в файл
+		err := os.WriteFile(filePath, []byte(msg.Content), 0644)
+		if err != nil {
+			log.Printf("Ошибка при сохранении файла: %v", err)
+			continue
+		}
+
+		fmt.Printf("Файл успешно сохранен: %s\n", filePath)
+	}
 }

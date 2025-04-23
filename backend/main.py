@@ -1,7 +1,7 @@
 import uvicorn
 from fastapi import FastAPI
 from src.navigation import navigation_router
-from src.download_files import files_router
+from src.files import files_router
 from fastapi.middleware.cors import CORSMiddleware
 
 

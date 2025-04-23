@@ -1,3 +1,4 @@
+import base64
 import time
 from pika import ConnectionParameters, BlockingConnection
 import json
@@ -13,7 +14,7 @@ connection_params = ConnectionParameters(
 )
 
 
-def sendToRabbitMQ(path: str, name: str):
+def send_for_download_RabbitMQ(path: str, name: str):
     with BlockingConnection(connection_params) as conn:
         with conn.channel() as ch:
             ch.queue_declare(queue="file")
@@ -31,7 +32,7 @@ def sendToRabbitMQ(path: str, name: str):
             print("Message sent")
 
 
-def getFromRabbitMQ():
+def get_for_download_RabbitMQ():
     result = {"url": None}
 
     def process_message(ch, method, properties, body):
@@ -54,3 +55,20 @@ def getFromRabbitMQ():
 
     return result["url"]
 
+
+def send_for_upload_RabbitMQ(file_data: bytes, path: str, name: str):
+    message = json.dumps({
+        "file_data": base64.b64encode(file_data).decode("utf-8"),
+        "path": path,
+        "name": name
+    })
+    with BlockingConnection(connection_params) as conn:
+        with conn.channel() as ch:
+            ch.queue_declare(queue="upload")
+
+            ch.basic_publish(
+                exchange="",
+                routing_key="upload",
+                body=message,
+            )
+            print("Message sent")
