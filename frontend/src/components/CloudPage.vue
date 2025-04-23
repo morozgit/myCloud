@@ -105,7 +105,7 @@ onMounted(() => {
   fetchDirectoryContents(routePath.value);
 });
 
-watch(route, () => {
+watch(() => route.fullPath, () => {
   fetchDirectoryContents(routePath.value);
 });
 
