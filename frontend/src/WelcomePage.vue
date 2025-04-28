@@ -12,7 +12,7 @@ import { useRouter } from 'vue-router';
 const router = useRouter();
 
 const goToCloud = async () => {
-  router.push({
+  await router.push({
       path: '/cloud',
     });
 };

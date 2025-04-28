@@ -1,6 +1,5 @@
 <template>
   <div class="wrapper">
-    <!-- Нажатие на заголовок My Cloud для перехода на /cloud -->
     <h1 @click="goToCloud" class="cloud-button">My Cloud</h1>
 
     <!-- Навигация по пути -->
@@ -8,10 +7,19 @@
       <span>Путь: </span>
       <span v-for="(segment, index) in pathSegments" :key="index">
         <span @click="goTo(index)" class="breadcrumb">
-          {{ segment}}
+          {{ segment }}
         </span>
         <span v-if="index < pathSegments.length - 1"> / </span>
       </span>
+    </div>
+
+      <!-- Кнопка загрузки -->
+    <div class="upload-container">
+      <button @click.stop="triggerFileUpload" class="upload-button">
+        <img src="/icons/upload-icon.svg" alt="Upload" class="upload-icon" />
+      </button>
+      <span class="upload-text">Загрузить файл</span>
+      <input ref="fileInput" type="file" @change="handleFileUpload" style="display: none;" />
     </div>
 
     <!-- Список файлов и папок -->
@@ -32,7 +40,7 @@
             <span v-else>{{ item.children_count !== null ? item.children_count + ' объектов' : 'Папка' }}</span>
           </p>
 
-          <!-- Кнопка для скачивания -->
+          <!-- Кнопка скачивания -->
           <button @click.stop="downloadFileWrapper(item)" class="download-button">
             <img src="/icons/download-icon.svg" alt="Download" class="download-icon" />
           </button>
@@ -47,29 +55,44 @@ import { ref, computed, onMounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import axios from 'axios';
 import { useDownload } from '@/composables/useDownload';
-
-const { downloadFile } = useDownload();
-
-const downloadFileWrapper = (item) => {
-  const fullPath = `${path.value}/${item.name}`.replace(/\/+/g, '/');
-  downloadFile({ ...item, path: fullPath });
-};
+import { uploadFile } from '@/composables/fileUploader';
+import './CloudView.css';
 
 const route = useRoute();
 const router = useRouter();
+const { downloadFile } = useDownload();
 
 const path = ref('');
 const items = ref([]);
+const fileInput = ref(null);
+
+const triggerFileUpload = () => {
+  fileInput.value.click();
+};
+
+const handleFileUpload = async (event) => {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('path', path.value); // путь загрузки
+    await uploadFile(formData);
+    await fetchDirectoryContents(path.value); // обновим список
+  } catch (error) {
+    console.error('Ошибка при загрузке файла:', error);
+  }
+};
 
 const fetchDirectoryContents = async (targetPath = '') => {
   try {
     const query = targetPath ? `?path=${encodeURIComponent(targetPath)}` : '';
     const response = await axios.get(`/api/navigation/${query}`);
     path.value = response.data.path;
-    console.log(response.data.path)
     items.value = response.data.items;
   } catch (error) {
-    console.error("Ошибка загрузки содержимого директории", error);
+    console.error('Ошибка загрузки содержимого директории', error);
   }
 };
 
@@ -82,33 +105,31 @@ onMounted(() => {
   fetchDirectoryContents(routePath.value);
 });
 
-// следим за сменой пути при нажатии кнопок "вперёд/назад"
-watch(route, () => {
+watch(() => route.path, () => {
   fetchDirectoryContents(routePath.value);
 });
 
 const handleClick = (item) => {
   if (item.is_dir) {
     const newPath = `${routePath.value}/${item.name}`.replace(/\/+/g, '/');
-    console.log(newPath)
     router.push(`/cloud${newPath}`);
   } else if (item.is_file) {
-    const fileUrl = `/files${path.value}/${item.name}`.replace(/\/+/g, '/');
+    const fileUrl = `/api/files${path.value}/${item.name}`.replace(/\/+/g, '/');
     window.open(fileUrl, '_blank');
   }
 };
 
-const getIcon = (item) => {
-  if (item.is_dir) return '/icons/folder-icon.svg';
-  const type = item.name.split('.').pop().toLowerCase();
-  return ['/txt', 'pdf', 'js', 'png', 'jpg'].includes(type)
-    ? `/icons/${type}-icon.svg`
-    : '/icons/file-icon.svg';
+const downloadFileWrapper = (item) => {
+  const fullPath = `${path.value}/${item.name}`.replace(/\/+/g, '/');
+  downloadFile({ ...item, path: fullPath });
 };
 
-const pathSegments = computed(() => {
-  return path.value.split('/').filter(Boolean);
-});
+const getIcon = (item) => {
+  if (item.is_dir) return '/icons/folder-icon.svg';
+  if (item.is_file) return '/icons/file-icon.svg';
+};
+
+const pathSegments = computed(() => path.value.split('/').filter(Boolean));
 
 const goTo = (index) => {
   const newPath = '/' + pathSegments.value.slice(0, index + 1).join('/');
@@ -119,128 +140,3 @@ const goToCloud = () => {
   router.push('/cloud');
 };
 </script>
-
-<style scoped>
-.breadcrumb {
-  color: #42b983;
-  cursor: pointer;
-  font-weight: bold;
-}
-
-.breadcrumb:hover {
-  text-decoration: underline;
-}
-
-.wrapper {
-  padding: 20px;
-  font-family: Arial, sans-serif;
-  max-width: 100%;
-}
-
-.directory-path {
-  margin-bottom: 10px;
-  color: #aaa;
-}
-
-.file-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 20px;
-  width: 100%;
-}
-
-.file-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  background-color: #1e1e1e;
-  padding: 12px;
-  border-radius: 8px;
-  text-align: center;
-  transition: background 0.2s ease;
-  cursor: pointer;
-}
-
-.file-details {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  width: 100%;
-  position: relative;
-  gap: 4px;
-}
-
-.file-item:hover {
-  background-color: #2a2a2a;
-}
-
-.file-icon {
-  width: 64px;
-  height: 64px;
-  margin-bottom: 8px;
-}
-
-.file-icon img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-}
-
-.file-name {
-  font-weight: 500;
-  font-size: 0.95em;
-  word-break: break-word;
-  color: #e0e0e0;
-}
-
-.file-size {
-  font-size: 0.8em;
-  color: #a0a0a0;
-}
-
-.download-button {
-  align-self: flex-end; /* сдвигает кнопку вправо */
-  padding: 5px 10px;
-  background-color: #828d8848;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-}
-
-.download-icon {
-  width: 24px;
-  height: 24px;
-}
-
-.download-button:hover {
-  background-color: #358a6a;
-  transform: scale(1.05);
-}
-
-.download-button:active {
-  transform: scale(1);
-}
-
-/* Стили для кнопки заголовка */
-.cloud-button {
-  display: inline-block;
-  padding: 15px 30px;
-  background-color: #828d8848;
-  color: white;
-  font-size: 2rem;
-  text-align: center;
-  border-radius: 10px;
-  cursor: pointer;
-  transition: background-color 0.3s ease, transform 0.2s ease;
-  text-decoration: none;
-}
-
-.cloud-button:hover {
-  background-color: #358a6a;
-  transform: scale(1.05);
-}
-
-.cloud-button:active {
-  transform: scale(1);
-}
-</style>

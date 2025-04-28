@@ -1,14 +1,12 @@
 import uvicorn
 from fastapi import FastAPI
-from src.navigation import navigation_router
-from src.download_files import files_router
 from fastapi.middleware.cors import CORSMiddleware
 
+from src.files import files_router
+from src.navigation import navigation_router
 
 app = FastAPI(
-    title="Backend MyCloud",
-    openapi_url="/api/openapi.json",
-    docs_url="/api/docs"
+    title="Backend MyCloud", openapi_url="/api/openapi.json", docs_url="/api/docs"
 )
 
 app.include_router(navigation_router)
