@@ -36,7 +36,7 @@ async def upload_file(file: UploadFile = File(...), path: str = Form(...)):
 
 
 @files_router.get("/{file_path:path}")
-async def serve_file(file_path: str):
+async def open_file(file_path: str):
     try:
         target_path = (BASE_DIR / file_path).resolve()
 

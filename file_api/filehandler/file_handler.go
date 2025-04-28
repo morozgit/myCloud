@@ -1,36 +1,77 @@
 package filehandler
 
 import (
+	"archive/zip"
 	"fmt"
-	"net/http"
+	"os"
+	"path/filepath"
 
 	"mycloud/file_api/config"
 )
 
-func CreateDownloadLink(filepath string) (string, error) {
+func CreateDownloadLink(path string) (string, error) {
 	var baseURL = config.GetBaseURL()
+	fullPath := filepath.Join("/home", path)
+	info, err := os.Stat(fullPath)
+	if err != nil {
+		return "", fmt.Errorf("не удалось получить информацию о файле/папке: %w", err)
+	}
 
-	link := fmt.Sprintf("%s%s", baseURL, filepath)
-	return link, nil
+	var downloadLink string
+	if info.IsDir() {
+		archivePath := fmt.Sprintf("%s.zip", fullPath)
+
+		err := zipFolder(fullPath, archivePath)
+		if err != nil {
+			return "", fmt.Errorf("не удалось архивировать папку: %w", err)
+		}
+
+		downloadLink = fmt.Sprintf("%s%s.zip", baseURL, path)
+	} else {
+		downloadLink = fmt.Sprintf("%s%s", baseURL, path)
+	}
+
+	return downloadLink, nil
 }
 
-func DownloadFileHandler(w http.ResponseWriter, r *http.Request) {
-	// Получаем путь файла из запроса
-	filePath := r.URL.Query().Get("path")
-	if filePath == "" {
-		http.Error(w, "Не указан путь к файлу", http.StatusBadRequest)
-		return
-	}
-
-	// Генерируем ссылку для скачивания
-	downloadLink, err := CreateDownloadLink(filePath)
+func zipFolder(source string, target string) error {
+	outFile, err := os.Create(target)
 	if err != nil {
-		http.Error(w, "Не удалось создать ссылку на файл", http.StatusInternalServerError)
-		return
+		return fmt.Errorf("не удалось создать архив: %w", err)
 	}
+	defer outFile.Close()
 
-	// Отправляем ссылку на фронтенд
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	fmt.Fprintf(w, `{"download_link": "%s"}`, downloadLink)
+	zipWriter := zip.NewWriter(outFile)
+	defer zipWriter.Close()
+
+	err = filepath.Walk(source, func(file string, fi os.FileInfo, err error) error {
+		if err != nil {
+			return fmt.Errorf("ошибка при обработке файла: %w", err)
+		}
+
+		if fi.IsDir() {
+			return nil
+		}
+
+		relPath, err := filepath.Rel(source, file)
+		if err != nil {
+			return fmt.Errorf("не удалось получить относительный путь: %w", err)
+		}
+
+		zipFile, err := zipWriter.Create(relPath)
+		if err != nil {
+			return fmt.Errorf("не удалось добавить файл в архив: %w", err)
+		}
+
+		inFile, err := os.Open(file)
+		if err != nil {
+			return fmt.Errorf("не удалось открыть файл: %w", err)
+		}
+		defer inFile.Close()
+
+		_, err = fmt.Fprintln(zipFile, inFile)
+		return err
+	})
+
+	return err
 }
