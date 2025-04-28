@@ -1,8 +1,8 @@
-from fastapi import APIRouter
-from pathlib import Path
 import os
+from pathlib import Path
+
+from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
-from fastapi import Request
 
 navigation_router = APIRouter(
     prefix="/api/navigation",
@@ -40,12 +40,9 @@ async def list_directory(request: Request):
 
             contents.append(item_info)
 
-        return {
-            "path": "/" + str(target_path.relative_to(BASE_DIR)),
-            "items": contents
-        }
+        return {"path": "/" + str(target_path.relative_to(BASE_DIR)), "items": contents}
 
     except Exception as e:
-        return JSONResponse(status_code=500, content={"detail": f"Ошибка чтения директории: {e}"})
-    
-
+        return JSONResponse(
+            status_code=500, content={"detail": f"Ошибка чтения директории: {e}"}
+        )

@@ -2,8 +2,6 @@
   <div class="wrapper">
     <h1 @click="goToCloud" class="cloud-button">My Cloud</h1>
 
-
-
     <!-- Навигация по пути -->
     <div class="directory-path">
       <span>Путь: </span>
@@ -116,7 +114,7 @@ const handleClick = (item) => {
     const newPath = `${routePath.value}/${item.name}`.replace(/\/+/g, '/');
     router.push(`/cloud${newPath}`);
   } else if (item.is_file) {
-    const fileUrl = `/files${path.value}/${item.name}`.replace(/\/+/g, '/');
+    const fileUrl = `/api/files${path.value}/${item.name}`.replace(/\/+/g, '/');
     window.open(fileUrl, '_blank');
   }
 };

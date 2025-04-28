@@ -1,11 +1,11 @@
 import base64
-import time
-from pika import ConnectionParameters, BlockingConnection
 import json
-from dotenv import find_dotenv, load_dotenv
 import os
 
-load_dotenv(find_dotenv()) 
+from dotenv import find_dotenv, load_dotenv
+from pika import BlockingConnection, ConnectionParameters
+
+load_dotenv(find_dotenv())
 RABBITMQ_HOST = os.environ.get("RABBITMQ_HOST")
 
 connection_params = ConnectionParameters(
@@ -19,10 +19,7 @@ def send_for_download_RabbitMQ(path: str, name: str):
         with conn.channel() as ch:
             ch.queue_declare(queue="file")
 
-            message = {
-                "path": path,
-                "name": name
-            }
+            message = {"path": path, "name": name}
 
             ch.basic_publish(
                 exchange="",
@@ -57,11 +54,13 @@ def get_for_download_RabbitMQ():
 
 
 def send_for_upload_RabbitMQ(file_data: bytes, path: str, name: str):
-    message = json.dumps({
-        "file_data": base64.b64encode(file_data).decode("utf-8"),
-        "path": path,
-        "name": name
-    })
+    message = json.dumps(
+        {
+            "file_data": base64.b64encode(file_data).decode("utf-8"),
+            "path": path,
+            "name": name,
+        }
+    )
     with BlockingConnection(connection_params) as conn:
         with conn.channel() as ch:
             ch.queue_declare(queue="upload")
