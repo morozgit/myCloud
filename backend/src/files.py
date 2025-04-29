@@ -1,8 +1,8 @@
 import os
 from pathlib import Path
 import zipfile
-
-from fastapi import APIRouter, File, Form, UploadFile
+import shutil
+from fastapi import APIRouter, File, Form, UploadFile, HTTPException
 from fastapi.responses import FileResponse, PlainTextResponse
 import logging
 from file_job.task import (
@@ -73,3 +73,21 @@ async def open_file(file_path: str):
 
     except Exception as e:
         return PlainTextResponse(f"Ошибка открытия файла: {e}", status_code=500)
+
+
+@files_router.post("/delete")
+async def delete_file(file: FileStruct):
+    file_path = (BASE_DIR / file.path.strip("/") / file.name).resolve()
+    print("file_path", file_path)
+
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="Файл или папка не найдены")
+
+    try:
+        if file_path.is_dir():
+            shutil.rmtree(file_path)
+        else:
+            file_path.unlink()
+        return {"message": "Файл или папка успешно удалены"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Ошибка при удалении: {str(e)}")

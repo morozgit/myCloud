@@ -30,6 +30,10 @@
         class="file-item"
         @click="handleClick(item)"
       >
+      <!-- Кнопка удаления -->
+      <button @click.stop="deleteFileWrapper(item)" class="delete-button">
+            <img src="/icons/delete-icon.svg" alt="Delete" class="delete-icon" />
+          </button>
         <div class="file-icon">
           <img :src="getIcon(item)" alt="icon" />
         </div>
@@ -39,11 +43,12 @@
             <span v-if="item.is_file">{{ item.size }} bytes</span>
             <span v-else>{{ item.children_count !== null ? item.children_count + ' объектов' : 'Папка' }}</span>
           </p>
-
+          
           <!-- Кнопка скачивания -->
           <button @click.stop="downloadFileWrapper(item)" class="download-button">
             <img src="/icons/download-icon.svg" alt="Download" class="download-icon" />
           </button>
+
         </div>
       </div>
     </div>
@@ -54,12 +59,14 @@
 import { ref, computed, onMounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import axios from 'axios';
+import { useDelete } from '@/composables/useDelete';
 import { useDownload } from '@/composables/useDownload';
 import { uploadFile } from '@/composables/fileUploader';
 import './CloudView.css';
 
 const route = useRoute();
 const router = useRouter();
+const { deleteFile } = useDelete();
 const { downloadFile } = useDownload();
 
 const path = ref('');
@@ -116,6 +123,15 @@ const handleClick = (item) => {
   } else if (item.is_file) {
     const fileUrl = `/api/files${path.value}/${item.name}`.replace(/\/+/g, '/');
     window.open(fileUrl, '_blank');
+  }
+};
+const deleteFileWrapper = async (item) => {
+  const fullPath = `${path.value}/${item.name}`.replace(/\/+/g, '/');
+  try {
+    await deleteFile({ ...item, path: path.value });
+    items.value = items.value.filter(i => i.name !== item.name);
+  } catch (error) {
+    console.error('Ошибка при удалении:', error);
   }
 };
 
