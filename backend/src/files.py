@@ -31,7 +31,27 @@ async def download_file(file: FileStruct):
 @files_router.post("/upload")
 async def upload_file(file: UploadFile = File(...), path: str = Form(...)):
     file_data = await file.read()
-    send_for_upload_RabbitMQ(file_data, path, file.filename)
+
+    # Размер части (8 MB)
+    part_size = 8 * 1024 * 1024
+
+    # Общее количество частей
+    total_parts = (
+        len(file_data) + part_size - 1
+    ) // part_size  # Округляем в большую сторону
+
+    # Разбиваем файл на части и отправляем каждую часть
+    part_num = 1
+    while file_data:
+        part_data = file_data[:part_size]  # Берем часть файла
+        file_data = file_data[
+            part_size:
+        ]  # Убираем переданную часть из оставшихся данных
+
+        # Отправка части файла в RabbitMQ с учетом total_parts
+        send_for_upload_RabbitMQ(part_data, path, file.filename, part_num, total_parts)
+        part_num += 1
+
     return {"name": file.filename, "message": f"Файл отправлен в очередь, путь: {path}"}
 
 

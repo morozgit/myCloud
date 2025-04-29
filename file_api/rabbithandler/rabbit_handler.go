@@ -1,6 +1,7 @@
 package rabbithandler
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -17,10 +18,12 @@ import (
 )
 
 type Message struct {
-	Path    string `json:"path"`
-	Name    string `json:"name"`
-	URL     string `json:"url"`
-	Content string `json:"file_data"`
+	Path       string `json:"path"`
+	Name       string `json:"name"`
+	URL        string `json:"url"`
+	PartNum    int    `json:"part_num"`
+	TotalParts int    `json:"total_parts"`
+	Content    string `json:"part_data"`
 }
 
 const (
@@ -167,6 +170,7 @@ func resolveUploadPath(originalPath string) (string, error) {
 
 	// Склеиваем с корневым путем
 	finalPath := filepath.Join(rootDir, relativePath)
+	fmt.Printf("Склеиваем с корневым путем: путь=%s\n", finalPath)
 	return finalPath, nil
 }
 
@@ -188,15 +192,21 @@ func handleUploadQueue() {
 		log.Fatalf("Не удалось зарегистрировать потребителя: %v", err)
 	}
 
+	// Карта для хранения частей файла
+	receivedParts := make(map[int]string)
+
+	var totalParts int
+	var filePath string
+
 	for d := range msgs {
 		var msg Message
 		if err := json.Unmarshal(d.Body, &msg); err != nil {
 			log.Printf("Ошибка при декодировании сообщения: %v", err)
 			continue
 		}
+		fmt.Printf("Получено сообщение: путь=%s, имя=%s, часть=%d\n", msg.Path, msg.Name, msg.PartNum)
 
-		fmt.Printf("Получено сообщение: путь=%s, имя=%s\n", msg.Path, msg.Name)
-
+		// Разрешаем путь и создаем директорию
 		resolvedPath, err := resolveUploadPath(msg.Path)
 		if err != nil {
 			log.Printf("Ошибка при разрешении пути: %v", err)
@@ -209,14 +219,42 @@ func handleUploadQueue() {
 			continue
 		}
 
-		filePath := filepath.Join(msg.Path, msg.Name)
-		err = os.WriteFile(filePath, []byte(msg.Content), 0644)
-		if err != nil {
-			log.Printf("Ошибка при сохранении файла: %v", err)
-			continue
+		// Если это первый кусок, сохраняем путь к файлу и количество частей
+		if len(receivedParts) == 0 {
+			filePath = filepath.Join(msg.Path, msg.Name)
+			totalParts = msg.TotalParts
+			fmt.Printf("Установлен totalParts: %d для файла %s\n", totalParts, msg.Name)
 		}
 
-		fmt.Printf("Файл успешно сохранен: %s\n", filePath)
+		// Сохраняем часть файла
+		receivedParts[msg.PartNum] = msg.Content
+		fmt.Printf("Получена часть %d, totalParts=%d, всего частей в receivedParts=%d\n", msg.PartNum, totalParts, len(receivedParts))
+		// Проверяем, все ли части файла получены
+		if len(receivedParts) == totalParts {
+			// Собираем файл
+			var fullFileData []byte
+			for i := 1; i <= totalParts; i++ {
+				partData, err := base64.StdEncoding.DecodeString(receivedParts[i])
+				if err != nil {
+					log.Printf("Ошибка при декодировании части %d: %v", i, err)
+					continue
+				}
+				fullFileData = append(fullFileData, partData...)
+			}
 
+			// Выводим собранные данные для отладки
+			fmt.Printf("fullFileData: %s\n", string(fullFileData)) // Будь осторожен с выводом больших данных в консоль
+
+			// Записываем файл
+			err := os.WriteFile(filePath, fullFileData, 0644)
+			if err != nil {
+				log.Printf("Ошибка при сохранении файла: %v", err)
+			} else {
+				fmt.Printf("Файл успешно сохранен: %s\n", filePath)
+			}
+
+			// Очистка карты для следующего файла
+			receivedParts = make(map[int]string)
+		}
 	}
 }

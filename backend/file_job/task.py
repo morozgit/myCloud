@@ -53,12 +53,16 @@ def get_for_download_RabbitMQ():
     return result["url"]
 
 
-def send_for_upload_RabbitMQ(file_data: bytes, path: str, name: str):
+def send_for_upload_RabbitMQ(
+    part_data: bytes, path: str, name: str, part_num: int, total_parts: int
+):
     message = json.dumps(
         {
-            "file_data": base64.b64encode(file_data).decode("utf-8"),
+            "part_data": base64.b64encode(part_data).decode("utf-8"),
             "path": path,
             "name": name,
+            "part_num": part_num,
+            "total_parts": total_parts,
         }
     )
     with BlockingConnection(connection_params) as conn:
@@ -70,4 +74,4 @@ def send_for_upload_RabbitMQ(file_data: bytes, path: str, name: str):
                 routing_key="upload",
                 body=message,
             )
-            print("Message sent")
+            print(f"Message part {part_num} sent")
