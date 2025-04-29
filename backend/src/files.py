@@ -3,7 +3,7 @@ from pathlib import Path
 
 from fastapi import APIRouter, File, Form, UploadFile
 from fastapi.responses import FileResponse, PlainTextResponse
-
+import logging
 from file_job.task import (
     get_for_download_RabbitMQ,
     send_for_download_RabbitMQ,
@@ -19,11 +19,14 @@ files_router = APIRouter(
 
 BASE_DIR = Path(os.getenv("BASE_DIR", "/home"))
 
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 
 @files_router.post("/download")
 async def download_file(file: FileStruct):
     send_for_download_RabbitMQ(str(file.path), str(file.name))
-    print("Получен payload:", file)
+    logger.info("Получен payload:", file)
     url = get_for_download_RabbitMQ()
     return {"download_url": url}
 
@@ -31,7 +34,17 @@ async def download_file(file: FileStruct):
 @files_router.post("/upload")
 async def upload_file(file: UploadFile = File(...), path: str = Form(...)):
     file_data = await file.read()
-    send_for_upload_RabbitMQ(file_data, path, file.filename)
+
+    part_size = 8 * 1024 * 1024
+
+    total_parts = (len(file_data) + part_size - 1) // part_size
+    part_num = 1
+    while file_data:
+        part_data = file_data[:part_size]
+        file_data = file_data[part_size:]
+        send_for_upload_RabbitMQ(part_data, path, file.filename, part_num, total_parts)
+        part_num += 1
+
     return {"name": file.filename, "message": f"Файл отправлен в очередь, путь: {path}"}
 
 

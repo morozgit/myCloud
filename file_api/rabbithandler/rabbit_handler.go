@@ -1,6 +1,7 @@
 package rabbithandler
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -17,10 +18,12 @@ import (
 )
 
 type Message struct {
-	Path    string `json:"path"`
-	Name    string `json:"name"`
-	URL     string `json:"url"`
-	Content string `json:"file_data"`
+	Path       string `json:"path"`
+	Name       string `json:"name"`
+	URL        string `json:"url"`
+	PartNum    int    `json:"part_num"`
+	TotalParts int    `json:"total_parts"`
+	Content    string `json:"part_data"`
 }
 
 const (
@@ -70,13 +73,15 @@ func HandleMessages() {
 func getRabbitMQChannel() (*amqp.Channel, *amqp.Connection, error) {
 	conn, err := amqp.Dial(config.GetRabbitMQURL())
 	if err != nil {
-		return nil, nil, fmt.Errorf("не удалось подключиться к RabbitMQ: %w", err)
+		log.Printf("не удалось подключиться к RabbitMQ: %v", err)
+		return nil, nil, err
 	}
 
 	ch, err := conn.Channel()
 	if err != nil {
 		conn.Close()
-		return nil, nil, fmt.Errorf("не удалось открыть канал RabbitMQ: %w", err)
+		log.Printf("не удалось подключиться к RabbitMQ: %v", err)
+		return nil, nil, err
 	}
 
 	return ch, conn, nil
@@ -161,11 +166,7 @@ func resolveUploadPath(originalPath string) (string, error) {
 	if rootDir == "" {
 		return "", fmt.Errorf("UPLOAD_ROOT_DIR не установлен в .env")
 	}
-
-	// Приводим путь к относительному, если он начинается с /
 	relativePath := strings.TrimPrefix(originalPath, "/")
-
-	// Склеиваем с корневым путем
 	finalPath := filepath.Join(rootDir, relativePath)
 	return finalPath, nil
 }
@@ -188,14 +189,18 @@ func handleUploadQueue() {
 		log.Fatalf("Не удалось зарегистрировать потребителя: %v", err)
 	}
 
+	receivedParts := make(map[int]string)
+
+	var totalParts int
+	var filePath string
+
 	for d := range msgs {
 		var msg Message
 		if err := json.Unmarshal(d.Body, &msg); err != nil {
 			log.Printf("Ошибка при декодировании сообщения: %v", err)
 			continue
 		}
-
-		fmt.Printf("Получено сообщение: путь=%s, имя=%s\n", msg.Path, msg.Name)
+		log.Printf("Получено сообщение: путь=%s, имя=%s, часть=%d\n", msg.Path, msg.Name, msg.PartNum)
 
 		resolvedPath, err := resolveUploadPath(msg.Path)
 		if err != nil {
@@ -209,14 +214,32 @@ func handleUploadQueue() {
 			continue
 		}
 
-		filePath := filepath.Join(msg.Path, msg.Name)
-		err = os.WriteFile(filePath, []byte(msg.Content), 0644)
-		if err != nil {
-			log.Printf("Ошибка при сохранении файла: %v", err)
-			continue
+		if len(receivedParts) == 0 {
+			filePath = filepath.Join(msg.Path, msg.Name)
+			totalParts = msg.TotalParts
 		}
 
-		fmt.Printf("Файл успешно сохранен: %s\n", filePath)
+		receivedParts[msg.PartNum] = msg.Content
+		log.Printf("Получена часть %d, totalParts=%d, всего частей в receivedParts=%d\n", msg.PartNum, totalParts, len(receivedParts))
+		if len(receivedParts) == totalParts {
+			var fullFileData []byte
+			for i := 1; i <= totalParts; i++ {
+				partData, err := base64.StdEncoding.DecodeString(receivedParts[i])
+				if err != nil {
+					log.Printf("Ошибка при декодировании части %d: %v", i, err)
+					continue
+				}
+				fullFileData = append(fullFileData, partData...)
+			}
 
+			err := os.WriteFile(filePath, fullFileData, 0644)
+			if err != nil {
+				log.Printf("Ошибка при сохранении файла: %v", err)
+			} else {
+				log.Printf("Файл успешно сохранен: %s\n", filePath)
+			}
+
+			receivedParts = make(map[int]string)
+		}
 	}
 }

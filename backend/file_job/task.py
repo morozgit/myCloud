@@ -1,9 +1,12 @@
 import base64
 import json
 import os
-
+import logging
 from dotenv import find_dotenv, load_dotenv
 from pika import BlockingConnection, ConnectionParameters
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 load_dotenv(find_dotenv())
 RABBITMQ_HOST = os.environ.get("RABBITMQ_HOST")
@@ -26,7 +29,7 @@ def send_for_download_RabbitMQ(path: str, name: str):
                 routing_key="file",
                 body=json.dumps(message).encode("utf-8"),
             )
-            print("Message sent")
+            logger.info("Message sent")
 
 
 def get_for_download_RabbitMQ():
@@ -34,7 +37,7 @@ def get_for_download_RabbitMQ():
 
     def process_message(ch, method, properties, body):
         message = json.loads(body.decode("utf-8"))
-        print(f"Получено сообщение: {message['url']}")
+        logger.info(f"Получено сообщение: {message['url']}")
         result["url"] = message["url"]
         ch.basic_ack(delivery_tag=method.delivery_tag)
         ch.stop_consuming()
@@ -47,18 +50,22 @@ def get_for_download_RabbitMQ():
                 queue="get_link",
                 on_message_callback=process_message,
             )
-            print("Жду сообщений")
+            logger.info("Жду сообщений")
             ch.start_consuming()
 
     return result["url"]
 
 
-def send_for_upload_RabbitMQ(file_data: bytes, path: str, name: str):
+def send_for_upload_RabbitMQ(
+    part_data: bytes, path: str, name: str, part_num: int, total_parts: int
+):
     message = json.dumps(
         {
-            "file_data": base64.b64encode(file_data).decode("utf-8"),
+            "part_data": base64.b64encode(part_data).decode("utf-8"),
             "path": path,
             "name": name,
+            "part_num": part_num,
+            "total_parts": total_parts,
         }
     )
     with BlockingConnection(connection_params) as conn:
@@ -70,4 +77,4 @@ def send_for_upload_RabbitMQ(file_data: bytes, path: str, name: str):
                 routing_key="upload",
                 body=message,
             )
-            print("Message sent")
+            logger.info(f"Message part {part_num} sent")
