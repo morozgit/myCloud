@@ -98,6 +98,29 @@
     transform: scale(1);
   }
 
+  .delete-button {
+    align-self: flex-end;
+    padding: 5px 10px;
+    background-color: #828d8848;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  
+  .delete-icon {
+    width: 24px;
+    height: 24px;
+  }
+  
+  .delete-button:hover {
+    background-color: #358a6a;
+    transform: scale(1.05);
+  }
+  
+  .delete-button:active {
+    transform: scale(1);
+  }
+
   .upload-container {
     margin-top: 10px; 
     margin-bottom: 20px;
