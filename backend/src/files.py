@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+import zipfile
 
 from fastapi import APIRouter, File, Form, UploadFile
 from fastapi.responses import FileResponse, PlainTextResponse
@@ -58,6 +59,15 @@ async def open_file(file_path: str):
 
         if not target_path.exists() or not target_path.is_file():
             return PlainTextResponse("Файл не найден", status_code=404)
+
+        if target_path.suffix == ".zip":
+            extract_dir = target_path.with_suffix("")
+            extract_dir.mkdir(parents=True, exist_ok=True)
+
+            with zipfile.ZipFile(target_path, "r") as archive:
+                archive.extractall(path=extract_dir)
+
+            return PlainTextResponse(f"Архив успешно распакован в: {extract_dir}")
 
         return FileResponse(target_path)
 
