@@ -3,6 +3,7 @@ package filehandler
 import (
 	"archive/zip"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 
@@ -14,7 +15,8 @@ func CreateDownloadLink(path string) (string, error) {
 	fullPath := filepath.Join("/home", path)
 	info, err := os.Stat(fullPath)
 	if err != nil {
-		return "", fmt.Errorf("не удалось получить информацию о файле/папке: %w", err)
+		log.Printf("не удалось получить информацию о файле/папке: %v", err)
+		return "", err
 	}
 
 	var downloadLink string
@@ -23,7 +25,8 @@ func CreateDownloadLink(path string) (string, error) {
 
 		err := zipFolder(fullPath, archivePath)
 		if err != nil {
-			return "", fmt.Errorf("не удалось архивировать папку: %w", err)
+			log.Printf("не удалось архивировать папку: %v", err)
+			return "", err
 		}
 
 		downloadLink = fmt.Sprintf("%s%s.zip", baseURL, path)
@@ -37,7 +40,8 @@ func CreateDownloadLink(path string) (string, error) {
 func zipFolder(source string, target string) error {
 	outFile, err := os.Create(target)
 	if err != nil {
-		return fmt.Errorf("не удалось создать архив: %w", err)
+		log.Printf("не удалось создать архив: %v", err)
+		return err
 	}
 	defer outFile.Close()
 
@@ -46,7 +50,8 @@ func zipFolder(source string, target string) error {
 
 	err = filepath.Walk(source, func(file string, fi os.FileInfo, err error) error {
 		if err != nil {
-			return fmt.Errorf("ошибка при обработке файла: %w", err)
+			log.Printf("ошибка при обработке файла: %v", err)
+			return err
 		}
 
 		if fi.IsDir() {
@@ -55,17 +60,20 @@ func zipFolder(source string, target string) error {
 
 		relPath, err := filepath.Rel(source, file)
 		if err != nil {
-			return fmt.Errorf("не удалось получить относительный путь: %w", err)
+			log.Printf("не удалось получить относительный путь: %v", err)
+			return err
 		}
 
 		zipFile, err := zipWriter.Create(relPath)
 		if err != nil {
-			return fmt.Errorf("не удалось добавить файл в архив: %w", err)
+			log.Printf("не удалось добавить файл в архив: %v", err)
+			return err
 		}
 
 		inFile, err := os.Open(file)
 		if err != nil {
-			return fmt.Errorf("не удалось открыть файл: %w", err)
+			log.Printf("не удалось открыть файл: %v", err)
+			return err
 		}
 		defer inFile.Close()
 

@@ -3,7 +3,7 @@ from pathlib import Path
 
 from fastapi import APIRouter, File, Form, UploadFile
 from fastapi.responses import FileResponse, PlainTextResponse
-
+import logging
 from file_job.task import (
     get_for_download_RabbitMQ,
     send_for_download_RabbitMQ,
@@ -19,11 +19,14 @@ files_router = APIRouter(
 
 BASE_DIR = Path(os.getenv("BASE_DIR", "/home"))
 
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 
 @files_router.post("/download")
 async def download_file(file: FileStruct):
     send_for_download_RabbitMQ(str(file.path), str(file.name))
-    print("Получен payload:", file)
+    logger.info("Получен payload:", file)
     url = get_for_download_RabbitMQ()
     return {"download_url": url}
 
@@ -32,23 +35,13 @@ async def download_file(file: FileStruct):
 async def upload_file(file: UploadFile = File(...), path: str = Form(...)):
     file_data = await file.read()
 
-    # Размер части (8 MB)
     part_size = 8 * 1024 * 1024
 
-    # Общее количество частей
-    total_parts = (
-        len(file_data) + part_size - 1
-    ) // part_size  # Округляем в большую сторону
-
-    # Разбиваем файл на части и отправляем каждую часть
+    total_parts = (len(file_data) + part_size - 1) // part_size
     part_num = 1
     while file_data:
-        part_data = file_data[:part_size]  # Берем часть файла
-        file_data = file_data[
-            part_size:
-        ]  # Убираем переданную часть из оставшихся данных
-
-        # Отправка части файла в RabbitMQ с учетом total_parts
+        part_data = file_data[:part_size]
+        file_data = file_data[part_size:]
         send_for_upload_RabbitMQ(part_data, path, file.filename, part_num, total_parts)
         part_num += 1
 

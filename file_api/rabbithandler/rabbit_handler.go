@@ -73,13 +73,15 @@ func HandleMessages() {
 func getRabbitMQChannel() (*amqp.Channel, *amqp.Connection, error) {
 	conn, err := amqp.Dial(config.GetRabbitMQURL())
 	if err != nil {
-		return nil, nil, fmt.Errorf("не удалось подключиться к RabbitMQ: %w", err)
+		log.Printf("не удалось подключиться к RabbitMQ: %v", err)
+		return nil, nil, err
 	}
 
 	ch, err := conn.Channel()
 	if err != nil {
 		conn.Close()
-		return nil, nil, fmt.Errorf("не удалось открыть канал RabbitMQ: %w", err)
+		log.Printf("не удалось подключиться к RabbitMQ: %v", err)
+		return nil, nil, err
 	}
 
 	return ch, conn, nil
@@ -164,13 +166,8 @@ func resolveUploadPath(originalPath string) (string, error) {
 	if rootDir == "" {
 		return "", fmt.Errorf("UPLOAD_ROOT_DIR не установлен в .env")
 	}
-
-	// Приводим путь к относительному, если он начинается с /
 	relativePath := strings.TrimPrefix(originalPath, "/")
-
-	// Склеиваем с корневым путем
 	finalPath := filepath.Join(rootDir, relativePath)
-	fmt.Printf("Склеиваем с корневым путем: путь=%s\n", finalPath)
 	return finalPath, nil
 }
 
@@ -192,7 +189,6 @@ func handleUploadQueue() {
 		log.Fatalf("Не удалось зарегистрировать потребителя: %v", err)
 	}
 
-	// Карта для хранения частей файла
 	receivedParts := make(map[int]string)
 
 	var totalParts int
@@ -204,9 +200,8 @@ func handleUploadQueue() {
 			log.Printf("Ошибка при декодировании сообщения: %v", err)
 			continue
 		}
-		fmt.Printf("Получено сообщение: путь=%s, имя=%s, часть=%d\n", msg.Path, msg.Name, msg.PartNum)
+		log.Printf("Получено сообщение: путь=%s, имя=%s, часть=%d\n", msg.Path, msg.Name, msg.PartNum)
 
-		// Разрешаем путь и создаем директорию
 		resolvedPath, err := resolveUploadPath(msg.Path)
 		if err != nil {
 			log.Printf("Ошибка при разрешении пути: %v", err)
@@ -219,19 +214,14 @@ func handleUploadQueue() {
 			continue
 		}
 
-		// Если это первый кусок, сохраняем путь к файлу и количество частей
 		if len(receivedParts) == 0 {
 			filePath = filepath.Join(msg.Path, msg.Name)
 			totalParts = msg.TotalParts
-			fmt.Printf("Установлен totalParts: %d для файла %s\n", totalParts, msg.Name)
 		}
 
-		// Сохраняем часть файла
 		receivedParts[msg.PartNum] = msg.Content
-		fmt.Printf("Получена часть %d, totalParts=%d, всего частей в receivedParts=%d\n", msg.PartNum, totalParts, len(receivedParts))
-		// Проверяем, все ли части файла получены
+		log.Printf("Получена часть %d, totalParts=%d, всего частей в receivedParts=%d\n", msg.PartNum, totalParts, len(receivedParts))
 		if len(receivedParts) == totalParts {
-			// Собираем файл
 			var fullFileData []byte
 			for i := 1; i <= totalParts; i++ {
 				partData, err := base64.StdEncoding.DecodeString(receivedParts[i])
@@ -242,18 +232,13 @@ func handleUploadQueue() {
 				fullFileData = append(fullFileData, partData...)
 			}
 
-			// Выводим собранные данные для отладки
-			fmt.Printf("fullFileData: %s\n", string(fullFileData)) // Будь осторожен с выводом больших данных в консоль
-
-			// Записываем файл
 			err := os.WriteFile(filePath, fullFileData, 0644)
 			if err != nil {
 				log.Printf("Ошибка при сохранении файла: %v", err)
 			} else {
-				fmt.Printf("Файл успешно сохранен: %s\n", filePath)
+				log.Printf("Файл успешно сохранен: %s\n", filePath)
 			}
 
-			// Очистка карты для следующего файла
 			receivedParts = make(map[int]string)
 		}
 	}
