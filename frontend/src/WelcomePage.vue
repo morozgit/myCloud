@@ -1,7 +1,7 @@
 <template>
   <div class="welcome-page">
     <h1>Добро пожаловать!</h1>
-    <p>Перейдите в облачное хранилище для просмотра файлов и папок.</p>
+    <p>Нажми на облако.</p>
     <div class="cloud" @click="goToCloud">
       <img src="/src/assets/cloud.png" alt="Облако" />
     </div>
