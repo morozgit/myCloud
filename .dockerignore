@@ -1,0 +1,7 @@
+*.tar.bz2
+*.tar.lzma
+*.war
+*.alz
+*.zip
+*.bak
+*.old
