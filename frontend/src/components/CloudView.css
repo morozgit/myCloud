@@ -156,6 +156,19 @@
     font-size: 1rem;
     color: #e0e0e0;
   }
+
+  .actions-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 16px 0;
+  }
+  
+  .sort-bar {
+    margin-left: auto;
+    font-weight: bold;
+    cursor: pointer;
+  }
   
   .cloud-button {
     display: inline-block;
