@@ -12,8 +12,8 @@
         <span v-if="index < pathSegments.length - 1"> / </span>
       </span>
     </div>
-
-      <!-- Кнопка загрузки -->
+  <div class="actions-bar">
+    <!-- Кнопка загрузки -->
     <div class="upload-container">
       <button @click.stop="triggerFileUpload" class="upload-button">
         <img src="/icons/upload-icon.svg" alt="Upload" class="upload-icon" />
@@ -22,18 +22,27 @@
       <input ref="fileInput" type="file" @change="handleFileUpload" style="display: none;" />
     </div>
 
+    <!-- Кнопка сортировки -->
+    <div class="sort-bar">
+      <span class="sort-label" @click="toggleSortOrder" style="cursor: pointer;">
+        <span class="upload-text">Сортировать по имени </span>
+        <span v-if="sortAscending">⬆️</span>
+        <span v-else>⬇️</span>
+      </span>
+    </div>
+  </div>
     <!-- Список файлов и папок -->
     <div class="file-list">
       <div
-        v-for="item in items"
+        v-for="item in sortedItems"
         :key="item.name"
         class="file-item"
         @click="handleClick(item)"
       >
-      <!-- Кнопка удаления -->
-      <button @click.stop="deleteFileWrapper(item)" class="delete-button">
-            <img src="/icons/delete-icon.svg" alt="Delete" class="delete-icon" />
-          </button>
+        <!-- Кнопка удаления -->
+        <button @click.stop="deleteFileWrapper(item)" class="delete-button">
+          <img src="/icons/delete-icon.svg" alt="Delete" class="delete-icon" />
+        </button>
         <div class="file-icon">
           <img :src="getIcon(item)" alt="icon" />
         </div>
@@ -43,12 +52,10 @@
             <span v-if="item.is_file">{{ item.size }} bytes</span>
             <span v-else>{{ item.children_count !== null ? item.children_count + ' объектов' : 'Папка' }}</span>
           </p>
-          
           <!-- Кнопка скачивания -->
           <button @click.stop="downloadFileWrapper(item)" class="download-button">
             <img src="/icons/download-icon.svg" alt="Download" class="download-icon" />
           </button>
-
         </div>
       </div>
     </div>
@@ -73,6 +80,25 @@ const path = ref('');
 const items = ref([]);
 const fileInput = ref(null);
 
+// Состояние сортировки
+const sortAscending = ref(true);
+const toggleSortOrder = () => {
+  sortAscending.value = !sortAscending.value;
+};
+
+// Сортированный список
+const sortedItems = computed(() => {
+  return [...items.value].sort((a, b) => {
+    // Папки выше файлов
+    if (a.is_file !== b.is_file) {
+      return a.is_file ? 1 : -1;
+    }
+    // Сортировка по имени
+    const result = a.name.localeCompare(b.name);
+    return sortAscending.value ? result : -result;
+  });
+});
+
 const triggerFileUpload = () => {
   fileInput.value.click();
 };
@@ -84,9 +110,9 @@ const handleFileUpload = async (event) => {
   try {
     const formData = new FormData();
     formData.append('file', file);
-    formData.append('path', path.value); // путь загрузки
+    formData.append('path', path.value);
     await uploadFile(formData);
-    await fetchDirectoryContents(path.value); // обновим список
+    await fetchDirectoryContents(path.value);
   } catch (error) {
     console.error('Ошибка при загрузке файла:', error);
   }
@@ -125,6 +151,7 @@ const handleClick = (item) => {
     window.open(fileUrl, '_blank');
   }
 };
+
 const deleteFileWrapper = async (item) => {
   const fullPath = `${path.value}/${item.name}`.replace(/\/+/g, '/');
   try {
