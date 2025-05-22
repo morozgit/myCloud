@@ -25,7 +25,7 @@
     <!-- Кнопка сортировки -->
     <div class="sort-bar">
       <span class="sort-label" @click="toggleSortOrder" style="cursor: pointer;">
-        <span class="upload-text">Сортировать по имени </span>
+        <span class="upload-text">Сортировать по имени  </span>
         <span v-if="sortAscending">⬆️</span>
         <span v-else>⬇️</span>
       </span>
