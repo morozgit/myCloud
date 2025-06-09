@@ -24,7 +24,8 @@ services:
       - ${HOST_USER_HOME}:/home
     environment:
       - BASE_DIR=/home
-      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+    env_file:
+      - ./file_api/.env
     depends_on:
       - rabbitmq
     networks:
