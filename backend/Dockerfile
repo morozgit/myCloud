@@ -5,4 +5,4 @@ RUN pip install -r requirements.txt
 
 COPY . .
 
-CMD bash -c "uvicorn main:app --host=0.0.0.0 --port=8000 --forwarded-allow-ips=*"
+CMD bash -c "uvicorn main:app --host=0.0.0.0 --port=8082 --forwarded-allow-ips=*"
