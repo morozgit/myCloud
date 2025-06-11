@@ -147,7 +147,7 @@ const handleClick = (item) => {
     const newPath = `${routePath.value}/${item.name}`.replace(/\/+/g, '/');
     router.push(`/cloud${newPath}`);
   } else if (item.is_file) {
-    const fileUrl = `/api/files${path.value}/${item.name}`.replace(/\/+/g, '/');
+    const fileUrl = `/mycloud/api/files${path.value}/${item.name}`.replace(/\/+/g, '/');
     window.open(fileUrl, '_blank');
   }
 };
@@ -168,8 +168,8 @@ const downloadFileWrapper = (item) => {
 };
 
 const getIcon = (item) => {
-  if (item.is_dir) return '/icons/folder-icon.svg';
-  if (item.is_file) return '/icons/file-icon.svg';
+  if (item.is_dir) return '/mycloud/icons/folder-icon.svg';
+  if (item.is_file) return '/mycloud/icons/file-icon.svg';
 };
 
 const pathSegments = computed(() => path.value.split('/').filter(Boolean));
