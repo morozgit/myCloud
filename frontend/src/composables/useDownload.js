@@ -14,7 +14,7 @@ export const useDownload = () => {
       };
 
       // Отправляем запрос на сервер для получения ссылки на скачивание
-      const response = await axios.post('/api/files/download', payload);
+      const response = await axios.post('/mycloud/api/files/download', payload);
       
       // Получаем ссылку для скачивания из ответа
       const downloadUrl = response.data.download_url;

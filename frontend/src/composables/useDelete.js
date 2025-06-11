@@ -13,7 +13,7 @@ export const useDelete = () => {
         name: item.name
       };
 
-      const response = await axios.post('/api/files/delete', payload);
+      const response = await axios.post('/mycloud/api/files/delete', payload);
       console.log(response);
       toastr.success('Файл удалён');
     } catch (error) {
