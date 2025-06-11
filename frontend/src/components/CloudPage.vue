@@ -121,7 +121,7 @@ const handleFileUpload = async (event) => {
 const fetchDirectoryContents = async (targetPath = '') => {
   try {
     const query = targetPath ? `?path=${encodeURIComponent(targetPath)}` : '';
-    const response = await axios.get(`/mycloud//api/navigation/${query}`);
+    const response = await axios.get(`/mycloud/api/navigation/${query}`);
     path.value = response.data.path;
     items.value = response.data.items;
   } catch (error) {
