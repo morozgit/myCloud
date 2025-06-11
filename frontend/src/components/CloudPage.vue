@@ -122,6 +122,8 @@ const fetchDirectoryContents = async (targetPath = '') => {
   try {
     const query = targetPath ? `?path=${encodeURIComponent(targetPath)}` : '';
     const response = await axios.get(`/api/navigation/${query}`);
+    console.log(query);
+    console.log(response);
     path.value = response.data.path;
     items.value = response.data.items;
   } catch (error) {
