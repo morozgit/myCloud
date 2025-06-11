@@ -79,6 +79,7 @@ const { downloadFile } = useDownload();
 const path = ref('');
 const items = ref([]);
 const fileInput = ref(null);
+const base = import.meta.env.BASE_URL;
 
 // Состояние сортировки
 const sortAscending = ref(true);
@@ -121,7 +122,7 @@ const handleFileUpload = async (event) => {
 const fetchDirectoryContents = async (targetPath = '') => {
   try {
     const query = targetPath ? `?path=${encodeURIComponent(targetPath)}` : '';
-    const response = await axios.get(`/api/navigation/${query}`);
+    const response = await axios.get(`${base}api/navigation${query}`);
     path.value = response.data.path;
     items.value = response.data.items;
   } catch (error) {
