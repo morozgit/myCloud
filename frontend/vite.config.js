@@ -1,19 +1,17 @@
-import { defineConfig } from 'vite';
-import vue from '@vitejs/plugin-vue';
-
 export default defineConfig({
+  base: '/mycloud/',
   plugins: [vue()],
   resolve: {
     alias: {
-      '@': '/src',  // Настроить алиас @ для src
+      '@': '/src',
     },
   },
   server: {
     proxy: {
       '/api': {
-        target: 'http://localhost:8000', // туда, где у тебя работает FastAPI
+        target: 'http://localhost:8000',
         changeOrigin: true,
-        rewrite: path => path.replace(/^\/api/, '/api'), // можно и просто path => path
+        rewrite: path => path.replace(/^\/api/, '/api'),
       },
     },
   },
