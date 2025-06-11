@@ -9,15 +9,15 @@ const routes = [
     component: WelcomePage,
   },
   {
-    path: '/cloud/:pathMatch(.*)*',  // <-- универсальный маршрут
+    path: '/cloud/:pathMatch(.*)*',
     name: 'CloudPage',
     component: CloudPage,
-    props: true, // позволяет передавать :pathMatch как пропс
+    props: true,
   },
 ];
 
 const router = createRouter({
-  history: createWebHistory(),
+  history: createWebHistory('/mycloud/'),
   routes,
 });
 
