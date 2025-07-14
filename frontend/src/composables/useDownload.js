@@ -2,6 +2,8 @@ import { ref } from 'vue';
 import toastr from 'toastr';
 import axios from 'axios';
 
+const apiBase = import.meta.env.VITE_API_BASE;
+
 export const useDownload = () => {
   const isDownloading = ref(false);
 
@@ -14,7 +16,7 @@ export const useDownload = () => {
       };
 
       // Отправляем запрос на сервер для получения ссылки на скачивание
-      const response = await axios.post('/mycloud/api/files/download', payload);
+      const response = await axios.post(`${apiBase}/files/download`, payload);
       console.log(response);
       
       // Получаем ссылку для скачивания из ответа

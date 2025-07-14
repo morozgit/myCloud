@@ -79,6 +79,7 @@ const { downloadFile } = useDownload();
 const path = ref('');
 const items = ref([]);
 const fileInput = ref(null);
+const apiBase = import.meta.env.VITE_API_BASE;
 
 // Состояние сортировки
 const sortAscending = ref(true);
@@ -88,12 +89,10 @@ const toggleSortOrder = () => {
 
 // Сортированный список
 const sortedItems = computed(() => {
-  return [...items.value].sort((a, b) => {
-    // Папки выше файлов
+  return [...(items.value || [])].sort((a, b) => {
     if (a.is_file !== b.is_file) {
       return a.is_file ? 1 : -1;
     }
-    // Сортировка по имени
     const result = a.name.localeCompare(b.name);
     return sortAscending.value ? result : -result;
   });
@@ -121,8 +120,9 @@ const handleFileUpload = async (event) => {
 const fetchDirectoryContents = async (targetPath = '') => {
   try {
     const query = targetPath ? `?path=${encodeURIComponent(targetPath)}` : '';
-    const response = await axios.get(`/mycloud/api/navigation/${query}`);
+    const response = await axios.get(`${apiBase}/navigation/${query}`);
     path.value = response.data.path;
+    console.log("path.value", response)
     items.value = response.data.items;
   } catch (error) {
     console.error('Ошибка загрузки содержимого директории', error);
@@ -147,7 +147,7 @@ const handleClick = (item) => {
     const newPath = `${routePath.value}/${item.name}`.replace(/\/+/g, '/');
     router.push(`/cloud${newPath}`);
   } else if (item.is_file) {
-    const fileUrl = `/mycloud/api/files${path.value}/${item.name}`.replace(/\/+/g, '/');
+    const fileUrl = `${apiBase}/files${path.value}/${item.name}`.replace(/\/+/g, '/');
     window.open(fileUrl, '_blank');
   }
 };
@@ -172,7 +172,7 @@ const getIcon = (item) => {
   if (item.is_file) return '/mycloud/icons/file-icon.svg';
 };
 
-const pathSegments = computed(() => path.value.split('/').filter(Boolean));
+const pathSegments = computed(() => (path.value || '').split('/').filter(Boolean));
 
 const goTo = (index) => {
   const newPath = '/' + pathSegments.value.slice(0, index + 1).join('/');

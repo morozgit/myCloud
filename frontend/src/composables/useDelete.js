@@ -2,6 +2,8 @@ import { ref } from 'vue';
 import toastr from 'toastr';
 import axios from 'axios';
 
+const apiBase = import.meta.env.VITE_API_BASE;
+
 export const useDelete = () => {
   const isDownloading = ref(false);
 
@@ -13,7 +15,7 @@ export const useDelete = () => {
         name: item.name
       };
 
-      const response = await axios.post('/mycloud/api/files/delete', payload);
+      const response = await axios.post(`${apiBase}/files/delete`, payload);
       console.log(response);
       toastr.success('Файл удалён');
     } catch (error) {
