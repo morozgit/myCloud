@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 @files_router.post("/download")
 async def download_file(file: FileStruct):
     send_for_download_RabbitMQ(str(file.path), str(file.name))
-    logger.info("Получен payload:", file)
+    logger.info("Получен payload: %s", file)
     url = get_for_download_RabbitMQ()
     return {"download_url": url}
 
