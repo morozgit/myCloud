@@ -13,6 +13,7 @@ import (
 func CreateDownloadLink(path string) (string, error) {
 	var baseURL = config.GetBaseURL()
 	fullPath := filepath.Join("/home", path)
+	log.Printf("fullPath: %s", fullPath)
 	info, err := os.Stat(fullPath)
 	if err != nil {
 		log.Printf("не удалось получить информацию о файле/папке: %v", err)
